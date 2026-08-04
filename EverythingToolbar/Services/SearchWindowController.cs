@@ -18,11 +18,15 @@ namespace EverythingToolbar.Services
         private const double DebounceMs = 500;
         private static readonly ILogger Logger = ToolbarLogger.GetLogger<SearchWindowController>();
 
+        private readonly SearchSession _session;
+        private readonly ISettings _settings;
+
         private SearchWindow? _window;
         private WindowState _state = WindowState.Hidden;
         private bool _structuralIconMode;
         private bool _temporaryPopupMode;
         private DateTime _lastHideStart = DateTime.MinValue;
+        private DispatcherTimer? _keepaliveTimer;
 
         private Func<bool>? _toolbarBoxIsFocused;
         private Action? _toolbarBoxFocus;
@@ -35,6 +39,13 @@ namespace EverythingToolbar.Services
         public event EventHandler? SearchBoxFocused;
 
         public bool IsIconMode => _structuralIconMode || _temporaryPopupMode;
+
+        public SearchWindowController(SearchSession session, ISettings settings)
+        {
+            _session = session;
+            _settings = settings;
+            _settings.PropertyChanged += OnSettingsChanged;
+        }
 
         private SearchWindow Window
         {
@@ -172,6 +183,9 @@ namespace EverythingToolbar.Services
 
         private void ShowInternal(bool atCursor)
         {
+            // Clear leftover selection from the previous open (local behavior).
+            _session.ClearSelection();
+            StopKeepaliveTimer();
             Window.Show(new ShowOptions(IsIconMode, atCursor));
             _state = WindowState.Visible;
         }
@@ -234,7 +248,56 @@ namespace EverythingToolbar.Services
         {
             _state = WindowState.Hidden;
             SetTemporaryPopupMode(false);
+            StartKeepaliveTimer();
             Hidden?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void OnSettingsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(ISettings.KeepaliveIntervalSeconds) && _state == WindowState.Hidden)
+            {
+                StartKeepaliveTimer();
+            }
+        }
+
+        private void StartKeepaliveTimer()
+        {
+            StopKeepaliveTimer();
+
+            var interval = Helpers.KeepaliveSettings.GetInterval(_settings);
+            _keepaliveTimer = new DispatcherTimer { Interval = interval };
+            _keepaliveTimer.Tick += OnKeepaliveTick;
+            _keepaliveTimer.Start();
+        }
+
+        private void StopKeepaliveTimer()
+        {
+            if (_keepaliveTimer == null)
+                return;
+
+            _keepaliveTimer.Tick -= OnKeepaliveTick;
+            _keepaliveTimer.Stop();
+            _keepaliveTimer = null;
+        }
+
+        private void OnKeepaliveTick(object? sender, EventArgs e)
+        {
+            if (_state != WindowState.Hidden)
+            {
+                StopKeepaliveTimer();
+                return;
+            }
+
+            // Light touch: re-assert Everything instance name so IPC stays warm after long idle.
+            try
+            {
+                var client = Ioc.Default.GetRequiredService<IEverythingClient>();
+                client.SetInstanceName(_settings.InstanceName);
+            }
+            catch (Exception ex)
+            {
+                Logger.Debug(ex, "Keepalive tick failed.");
+            }
         }
 
         private void RunOnUi(Action action)

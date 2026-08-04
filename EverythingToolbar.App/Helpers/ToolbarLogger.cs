@@ -23,9 +23,28 @@ namespace EverythingToolbar.App.Helpers
             return LogFactory.GetLogger(typeof(T).FullName);
         }
 
+        private static bool _forceDebugLogging;
+
         private static LogLevel GetLogLevel()
         {
-            return File.Exists(DebugFlagFileName) ? LogLevel.Debug : LogLevel.Info;
+            return _forceDebugLogging || File.Exists(DebugFlagFileName) ? LogLevel.Debug : LogLevel.Info;
+        }
+
+        /// <summary>
+        /// Toggle debug-level file logging at runtime (settings switch or debug.txt).
+        /// </summary>
+        public static void SetDebugLoggingEnabled(bool enabled)
+        {
+            _forceDebugLogging = enabled;
+            if (LogFactory.Configuration == null)
+                return;
+
+            foreach (var rule in LogFactory.Configuration.LoggingRules)
+            {
+                rule.SetLoggingLevels(GetLogLevel(), LogLevel.Fatal);
+            }
+
+            LogFactory.ReconfigExistingLoggers();
         }
 
         private static void LogVersionInformation(ILogger logger)

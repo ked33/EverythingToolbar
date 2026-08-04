@@ -78,12 +78,7 @@ namespace EverythingToolbar.App.Services
         {
             var filters = new ObservableCollection<Filter>();
 
-            if (string.IsNullOrWhiteSpace(_settings.FiltersPath))
-                _settings.FiltersPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "Everything",
-                    "Filters.csv"
-                );
+            _settings.FiltersPath = ResolveFiltersPath(_settings.FiltersPath);
 
             if (!File.Exists(_settings.FiltersPath))
             {
@@ -224,6 +219,35 @@ namespace EverythingToolbar.App.Services
         private void OnFileChanged(object source, FileSystemEventArgs e)
         {
             ResetFilters();
+        }
+
+        /// <summary>
+        /// Prefer Filters.csv next to the configured path; fall back to legacy Filters-1.5a.csv.
+        /// </summary>
+        private static string ResolveFiltersPath(string configuredPath)
+        {
+            if (string.IsNullOrWhiteSpace(configuredPath))
+            {
+                configuredPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "Everything",
+                    "Filters.csv"
+                );
+            }
+
+            var directory = Path.GetDirectoryName(configuredPath);
+            if (string.IsNullOrWhiteSpace(directory))
+                return configuredPath;
+
+            var currentFiltersPath = Path.Combine(directory, "Filters.csv");
+            if (File.Exists(currentFiltersPath))
+                return currentFiltersPath;
+
+            var legacyFiltersPath = Path.Combine(directory, "Filters-1.5a.csv");
+            if (File.Exists(legacyFiltersPath))
+                return legacyFiltersPath;
+
+            return configuredPath;
         }
     }
 }

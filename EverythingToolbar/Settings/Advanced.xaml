@@ -113,12 +113,43 @@
         Padding="16"
         Background="{ui:ThemeResource CardBackgroundFillColorDefaultBrush}"
         BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
-        BorderThickness="1 0 1 1"
-        CornerRadius="0, 0,8,8"
+        BorderThickness="1 0 1 0"
+        CornerRadius="0"
         Visibility="{Binding IsWindows11, RelativeSource={RelativeSource AncestorType={x:Type Page}}, Converter={c:BoolToVisibilityConverter}}">
         <controls:SettingItem Title="{x:Static properties:Resources.SettingsForceWin10Styles}" HelpText="{x:Static properties:Resources.SettingsForceWin10StylesHelp}">
           <controls:SettingItem.SettingContent>
             <ui:ToggleSwitch IsChecked="{Binding Settings.ForceWin10Behavior, Mode=TwoWay}" />
+          </controls:SettingItem.SettingContent>
+        </controls:SettingItem>
+      </Border>
+      <Border
+        Padding="16"
+        Background="{ui:ThemeResource CardBackgroundFillColorDefaultBrush}"
+        BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
+        BorderThickness="1 0 1 0"
+        CornerRadius="0">
+        <controls:SettingItem
+          Title="{x:Static properties:Resources.SettingsKeepaliveInterval}"
+          HelpText="{x:Static properties:Resources.SettingsKeepaliveIntervalHelp}">
+          <controls:SettingItem.SettingContent>
+            <ui:TextBox
+              Width="80"
+              HorizontalAlignment="Right"
+              Text="{Binding Settings.KeepaliveIntervalSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+          </controls:SettingItem.SettingContent>
+        </controls:SettingItem>
+      </Border>
+      <Border
+        Padding="16"
+        Background="{ui:ThemeResource CardBackgroundFillColorDefaultBrush}"
+        BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
+        BorderThickness="1 0 1 1"
+        CornerRadius="0,0,8,8">
+        <controls:SettingItem
+          Title="{x:Static properties:Resources.SettingsDebugLoggingEnabled}"
+          HelpText="{x:Static properties:Resources.SettingsDebugLoggingEnabledHelp}">
+          <controls:SettingItem.SettingContent>
+            <ui:ToggleSwitch IsChecked="{Binding Settings.IsDebugLoggingEnabled, Mode=TwoWay}" />
           </controls:SettingItem.SettingContent>
         </controls:SettingItem>
       </Border>

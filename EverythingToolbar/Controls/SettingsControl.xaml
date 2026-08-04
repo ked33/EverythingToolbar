@@ -102,20 +102,20 @@
           <MenuItem
             Header="{x:Static properties:Resources.SettingsRegularExpressions}"
             IsCheckable="True"
-            IsChecked="{Binding Settings.IsRegExEnabled, Mode=TwoWay}" />
+            IsChecked="{Binding SearchState.IsRegExEnabled, Mode=TwoWay}" />
           <MenuItem
             Header="{x:Static properties:Resources.SettingsMatchCase}"
             IsCheckable="True"
-            IsChecked="{Binding Settings.IsMatchCase, Mode=TwoWay}" />
+            IsChecked="{Binding SearchState.IsMatchCase, Mode=TwoWay}" />
           <MenuItem
             Header="{x:Static properties:Resources.SettingsMatchPath}"
             IsCheckable="True"
-            IsChecked="{Binding Settings.IsMatchPath, Mode=TwoWay}" />
+            IsChecked="{Binding SearchState.IsMatchPath, Mode=TwoWay}" />
           <MenuItem
             Header="{x:Static properties:Resources.SettingsMatchWholeWord}"
             IsCheckable="True"
-            IsChecked="{Binding Settings.IsMatchWholeWord, Mode=TwoWay}"
-            IsEnabled="{Binding Settings.IsRegExEnabled, Mode=OneWay, TargetNullValue=True, Converter={converters:NotConverter}}" />
+            IsChecked="{Binding SearchState.IsMatchWholeWord, Mode=TwoWay}"
+            IsEnabled="{Binding SearchState.IsRegExEnabled, Mode=OneWay, TargetNullValue=True, Converter={converters:NotConverter}}" />
           <Separator />
           <MenuItem
             Click="OpenSettingsWindow"

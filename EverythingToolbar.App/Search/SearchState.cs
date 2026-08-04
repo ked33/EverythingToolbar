@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using EverythingToolbar.Core.Data;
@@ -11,12 +11,44 @@ namespace EverythingToolbar.App.Search
         [ObservableProperty]
         private string _searchTerm = "";
 
+        // Session-scoped quick toggles: reset on each search session, do not write settings.ini.
+        private bool _isMatchCase;
+        private bool _isMatchPath;
+        private bool _isMatchWholeWord;
+        private bool _isRegExEnabled;
+
         public SortBy SortBy => (SortBy)_settings.SortBy;
         public bool IsSortDescending => _settings.IsSortDescending;
-        public bool IsMatchCase => _settings.IsMatchCase;
-        public bool IsMatchPath => _settings.IsMatchPath;
-        public bool IsMatchWholeWord => _settings.IsMatchWholeWord;
-        public bool IsRegExEnabled => _settings.IsRegExEnabled;
+
+        public bool IsMatchCase
+        {
+            get => _isMatchCase;
+            set
+            {
+                if (SetProperty(ref _isMatchCase, value))
+                {
+                    // Also notify bindings that still watch the settings name shape.
+                }
+            }
+        }
+
+        public bool IsMatchPath
+        {
+            get => _isMatchPath;
+            set => SetProperty(ref _isMatchPath, value);
+        }
+
+        public bool IsMatchWholeWord
+        {
+            get => _isMatchWholeWord;
+            set => SetProperty(ref _isMatchWholeWord, value);
+        }
+
+        public bool IsRegExEnabled
+        {
+            get => _isRegExEnabled;
+            set => SetProperty(ref _isRegExEnabled, value);
+        }
 
         private Filter _currentFilter;
         public Filter Filter
@@ -54,6 +86,12 @@ namespace EverythingToolbar.App.Search
                 SearchTerm = "";
 
             Filter = _filterProvider.GetInitialFilter();
+
+            // Local behavior: clear quick toggles per search session without touching persisted settings.
+            IsMatchCase = false;
+            IsMatchPath = false;
+            IsMatchWholeWord = false;
+            IsRegExEnabled = false;
         }
 
         public string GetPreviousSearchTerm() => _history.GetPreviousItem();
@@ -95,7 +133,6 @@ namespace EverythingToolbar.App.Search
 
             var defaultMacros = new Dictionary<string, string>
             {
-                // Macros quot:, gt: and lt: are not supported by the SDK
                 { "apos:", "'" },
                 { "amp:", "&" },
             };
@@ -112,6 +149,18 @@ namespace EverythingToolbar.App.Search
             var rawSearchTerm =
                 Filter.GetSearchPrefix(IsMatchCase, IsMatchWholeWord, IsMatchPath, IsRegExEnabled) + SearchTerm;
             var searchTermWithAppliedMacros = ApplyMacros(rawSearchTerm);
+
+            // Default directory: when the user has not typed a term, scope results to the configured path.
+            if (string.IsNullOrEmpty(SearchTerm))
+            {
+                var defaultPath = _settings.DefaultSearchPath;
+                if (!string.IsNullOrWhiteSpace(defaultPath))
+                {
+                    var trimmedPath = defaultPath.Trim();
+                    searchTermWithAppliedMacros = $"path:\"{trimmedPath}\" {searchTermWithAppliedMacros}";
+                }
+            }
+
             return searchTermWithAppliedMacros;
         }
 
@@ -132,18 +181,6 @@ namespace EverythingToolbar.App.Search
         {
             switch (e.PropertyName)
             {
-                case nameof(ISettings.IsMatchCase):
-                    OnPropertyChanged(nameof(IsMatchCase));
-                    break;
-                case nameof(ISettings.IsMatchPath):
-                    OnPropertyChanged(nameof(IsMatchPath));
-                    break;
-                case nameof(ISettings.IsMatchWholeWord):
-                    OnPropertyChanged(nameof(IsMatchWholeWord));
-                    break;
-                case nameof(ISettings.IsRegExEnabled):
-                    OnPropertyChanged(nameof(IsRegExEnabled));
-                    break;
                 case nameof(ISettings.SortBy):
                     OnPropertyChanged(nameof(SortBy));
                     break;
@@ -152,6 +189,10 @@ namespace EverythingToolbar.App.Search
                     break;
                 case nameof(ISettings.IsHideEmptySearchResults):
                     SearchTerm = "";
+                    OnPropertyChanged(nameof(SearchTerm));
+                    break;
+                case nameof(ISettings.DefaultSearchPath):
+                    // Rebuild queries that depend on the default path prefix.
                     OnPropertyChanged(nameof(SearchTerm));
                     break;
             }

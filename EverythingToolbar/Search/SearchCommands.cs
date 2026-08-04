@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Windows.Input;
 using EverythingToolbar.Core.Data;
+using EverythingToolbar.Helpers;
 
 namespace EverythingToolbar.Search
 {
@@ -32,75 +33,123 @@ namespace EverythingToolbar.Search
 
         public bool TranslateResultsGesture(Key key, Key systemKey, ModifierKeys modifiers, bool fromSearchBox)
         {
-            if (key == Key.Enter && modifiers == ModifierKeys.None)
+            var effectiveKey = key == Key.System ? systemKey : key;
+
+            if (Matches(_settings.OpenResultShortcut, effectiveKey, modifiers, requireModifier: false))
             {
-                if (_session.SelectedResult == null)
+                if (modifiers == ModifierKeys.None && effectiveKey is Key.Enter or Key.Return)
                 {
-                    _session.MoveDown();
-                    SyncFocusToSelection();
+                    if (_session.SelectedResult == null)
+                    {
+                        _session.MoveDown();
+                        SyncFocusToSelection();
+                    }
+                    else
+                    {
+                        OpenSelected();
+                    }
+                    return true;
                 }
-                else
+
+                if (modifiers != ModifierKeys.None || effectiveKey is not (Key.Enter or Key.Return))
                 {
                     OpenSelected();
+                    return true;
                 }
-                return true;
             }
-            if (key == Key.Enter && modifiers == ModifierKeys.Control)
+
+            if (Matches(_settings.OpenPathShortcut, effectiveKey, modifiers))
             {
                 OpenSelectedPath();
                 return true;
             }
-            if (key == Key.Enter && modifiers == ModifierKeys.Shift)
+
+            if (Matches(_settings.OpenInEverythingShortcut, effectiveKey, modifiers))
             {
                 ShowSelectedInEverything();
                 return true;
             }
-            if (key == Key.Enter && modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+
+            if (Matches(_settings.RunAsAdminShortcut, effectiveKey, modifiers))
             {
                 RunSelectedAsAdmin();
                 return true;
             }
-            if ((key == Key.Enter || systemKey == Key.Enter) && modifiers == ModifierKeys.Alt)
+
+            if (Matches(_settings.ShowFilePropertiesShortcut, effectiveKey, modifiers))
             {
                 ShowSelectedProperties();
                 return true;
             }
 
-            if (modifiers == ModifierKeys.Control && key == Key.I)
+            if (Matches(_settings.CopyFileShortcut, effectiveKey, modifiers, requireModifier: true))
             {
-                _settings.IsMatchCase = !_settings.IsMatchCase;
-                return true;
-            }
-            if (modifiers == ModifierKeys.Control && key == Key.B)
-            {
-                _settings.IsMatchWholeWord = !_settings.IsMatchWholeWord;
-                return true;
-            }
-            if (modifiers == ModifierKeys.Control && key == Key.U)
-            {
-                _settings.IsMatchPath = !_settings.IsMatchPath;
-                return true;
-            }
-            if (modifiers == ModifierKeys.Control && key == Key.R)
-            {
-                _settings.IsRegExEnabled = !_settings.IsRegExEnabled;
+                CopySelected();
                 return true;
             }
 
-            if (modifiers == ModifierKeys.Control && key is >= Key.D0 and <= Key.D9)
+            if (Matches(_settings.CopyFullPathShortcut, effectiveKey, modifiers, requireModifier: true))
             {
-                var index = key == Key.D0 ? 9 : key - Key.D1;
+                CopySelectedPath();
+                return true;
+            }
+
+            if (Matches(_settings.CopyNameShortcut, effectiveKey, modifiers, requireModifier: true))
+            {
+                // Name-only copy: reuse path action's sibling via clipboard name if available.
+                // SearchResultActions exposes CopyPath; name copy goes through SelectedResult helper if present.
+                if (_session.SelectedResult != null)
+                {
+                    try
+                    {
+                        System.Windows.Clipboard.SetText(_session.SelectedResult.FileName);
+                    }
+                    catch
+                    {
+                        // ignore clipboard failures
+                    }
+                }
+                return true;
+            }
+
+            if (Matches(_settings.ToggleMatchCaseShortcut, effectiveKey, modifiers))
+            {
+                _searchState.IsMatchCase = !_searchState.IsMatchCase;
+                return true;
+            }
+
+            if (Matches(_settings.ToggleMatchWholeWordShortcut, effectiveKey, modifiers))
+            {
+                _searchState.IsMatchWholeWord = !_searchState.IsMatchWholeWord;
+                return true;
+            }
+
+            if (Matches(_settings.ToggleMatchPathShortcut, effectiveKey, modifiers))
+            {
+                _searchState.IsMatchPath = !_searchState.IsMatchPath;
+                return true;
+            }
+
+            if (Matches(_settings.ToggleRegexShortcut, effectiveKey, modifiers))
+            {
+                _searchState.IsRegExEnabled = !_searchState.IsRegExEnabled;
+                return true;
+            }
+
+            if (modifiers == ModifierKeys.Control && effectiveKey is >= Key.D0 and <= Key.D9)
+            {
+                var index = effectiveKey == Key.D0 ? 9 : effectiveKey - Key.D1;
                 _searchState.SelectFilterFromIndex(index);
                 return true;
             }
 
-            if (key == Key.Tab && modifiers is ModifierKeys.None or ModifierKeys.Shift)
+            if (effectiveKey == Key.Tab && modifiers is ModifierKeys.None or ModifierKeys.Shift)
             {
                 _searchState.CycleFilters(modifiers == ModifierKeys.Shift ? -1 : 1);
                 return true;
             }
 
-            switch (key)
+            switch (effectiveKey)
             {
                 case Key.Up when CanArrowNavigate(modifiers, fromSearchBox):
                     _session.MoveUp();
@@ -127,6 +176,9 @@ namespace EverythingToolbar.Search
             SyncFocusToSelection();
             return true;
         }
+
+        private static bool Matches(string? shortcut, Key key, ModifierKeys modifiers, bool requireModifier = false) =>
+            ShortcutUtils.MatchesShortcut(key, modifiers, shortcut, requireModifier);
 
         private static bool CanArrowNavigate(ModifierKeys modifiers, bool fromSearchBox) =>
             !fromSearchBox || modifiers == ModifierKeys.None;

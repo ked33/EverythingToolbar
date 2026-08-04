@@ -24,9 +24,15 @@ namespace EverythingToolbar
             var provider = services.BuildServiceProvider();
             Ioc.Default.ConfigureServices(provider);
 
-            provider
-                .GetRequiredService<IEverythingClient>()
-                .SetInstanceName(provider.GetRequiredService<ISettings>().InstanceName);
+            var settings = provider.GetRequiredService<ISettings>();
+            ToolbarLogger.SetDebugLoggingEnabled(settings.IsDebugLoggingEnabled);
+            settings.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ISettings.IsDebugLoggingEnabled))
+                    ToolbarLogger.SetDebugLoggingEnabled(settings.IsDebugLoggingEnabled);
+            };
+
+            provider.GetRequiredService<IEverythingClient>().SetInstanceName(settings.InstanceName);
         }
     }
 
@@ -84,6 +90,7 @@ namespace EverythingToolbar
                 .AddSingleton<ThemeService>()
                 .AddSingleton<StartMenuSearchInterceptor>()
                 .AddSingleton<GlobalShortcutListener>()
+                .AddSingleton<DoubleCtrlListener>()
                 .AddSingleton<SearchWindow>()
                 .AddSingleton<SearchWindowController>()
                 .AddSingleton<ISearchWindowController>(sp => sp.GetRequiredService<SearchWindowController>())

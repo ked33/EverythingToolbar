@@ -1912,5 +1912,57 @@ namespace EverythingToolbar.Properties {
                 return ResourceManager.GetString("UserFilterVideo", resourceCulture);
             }
         }
+        public static string ThemeSystem {
+            get { return ResourceManager.GetString("ThemeSystem", resourceCulture); }
+        }
+        public static string ThemeLight {
+            get { return ResourceManager.GetString("ThemeLight", resourceCulture); }
+        }
+        public static string ThemeDark {
+            get { return ResourceManager.GetString("ThemeDark", resourceCulture); }
+        }
+        public static string ThemeNord {
+            get { return ResourceManager.GetString("ThemeNord", resourceCulture); }
+        }
+        public static string ThemeOneDark {
+            get { return ResourceManager.GetString("ThemeOneDark", resourceCulture); }
+        }
+        public static string SettingsTheme {
+            get { return ResourceManager.GetString("SettingsTheme", resourceCulture); }
+        }
+        public static string SettingsThemeHelp {
+            get { return ResourceManager.GetString("SettingsThemeHelp", resourceCulture); }
+        }
+        public static string SettingsOpenSearchWindowOnDoubleCtrl {
+            get { return ResourceManager.GetString("SettingsOpenSearchWindowOnDoubleCtrl", resourceCulture); }
+        }
+        public static string SettingsOpenSearchWindowOnDoubleCtrlHelp {
+            get { return ResourceManager.GetString("SettingsOpenSearchWindowOnDoubleCtrlHelp", resourceCulture); }
+        }
+        public static string SettingsDoubleCtrlProcessBlacklist {
+            get { return ResourceManager.GetString("SettingsDoubleCtrlProcessBlacklist", resourceCulture); }
+        }
+        public static string SettingsDoubleCtrlProcessBlacklistHelp {
+            get { return ResourceManager.GetString("SettingsDoubleCtrlProcessBlacklistHelp", resourceCulture); }
+        }
+        public static string SettingsKeepaliveInterval {
+            get { return ResourceManager.GetString("SettingsKeepaliveInterval", resourceCulture); }
+        }
+        public static string SettingsKeepaliveIntervalHelp {
+            get { return ResourceManager.GetString("SettingsKeepaliveIntervalHelp", resourceCulture); }
+        }
+        public static string SettingsDefaultSearchPath {
+            get { return ResourceManager.GetString("SettingsDefaultSearchPath", resourceCulture); }
+        }
+        public static string SettingsDefaultSearchPathHelp {
+            get { return ResourceManager.GetString("SettingsDefaultSearchPathHelp", resourceCulture); }
+        }
+        public static string SettingsDebugLoggingEnabled {
+            get { return ResourceManager.GetString("SettingsDebugLoggingEnabled", resourceCulture); }
+        }
+        public static string SettingsDebugLoggingEnabledHelp {
+            get { return ResourceManager.GetString("SettingsDebugLoggingEnabledHelp", resourceCulture); }
+        }
+
     }
 }

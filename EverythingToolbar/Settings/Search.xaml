@@ -92,11 +92,28 @@
         Padding="16"
         Background="{ui:ThemeResource CardBackgroundFillColorDefaultBrush}"
         BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
-        BorderThickness="1 1 1 1"
-        CornerRadius="0, 0, 8, 8">
+        BorderThickness="1 1 1 0"
+        CornerRadius="0">
         <controls:SettingItem Title="{x:Static properties:Resources.SettingsDoubleClickToOpen}" HelpText="{x:Static properties:Resources.SettingsDoubleClickHelp}">
           <controls:SettingItem.SettingContent>
             <ui:ToggleSwitch IsChecked="{Binding Settings.IsDoubleClickToOpen, Mode=TwoWay}" />
+          </controls:SettingItem.SettingContent>
+        </controls:SettingItem>
+      </Border>
+      <Border
+        Padding="16"
+        Background="{ui:ThemeResource CardBackgroundFillColorDefaultBrush}"
+        BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
+        BorderThickness="1 0 1 1"
+        CornerRadius="0, 0, 8, 8">
+        <controls:SettingItem
+          Title="{x:Static properties:Resources.SettingsDefaultSearchPath}"
+          HelpText="{x:Static properties:Resources.SettingsDefaultSearchPathHelp}">
+          <controls:SettingItem.SettingContent>
+            <ui:TextBox
+              Width="260"
+              HorizontalAlignment="Right"
+              Text="{Binding Settings.DefaultSearchPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
           </controls:SettingItem.SettingContent>
         </controls:SettingItem>
       </Border>

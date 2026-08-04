@@ -11,6 +11,9 @@ namespace EverythingToolbar.ViewModels
 
         public ISettings Settings { get; }
 
+        /// <summary>Session-scoped search toggles (reset per open; not written to settings.ini).</summary>
+        public SearchState SearchState => _searchState;
+
         public SearchBoxViewModel(
             SearchState searchState,
             ISettings settings,

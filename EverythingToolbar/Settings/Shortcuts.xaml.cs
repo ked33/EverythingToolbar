@@ -30,12 +30,17 @@ namespace EverythingToolbar.Settings
             Ioc.Default.GetRequiredService<StartMenuSearchInterceptor>();
         private readonly GlobalShortcutListener _shortcutListener =
             Ioc.Default.GetRequiredService<GlobalShortcutListener>();
+        private readonly DoubleCtrlListener _doubleCtrlListener =
+            Ioc.Default.GetRequiredService<DoubleCtrlListener>();
 
         private LowLevelKeyboardHook? _keyboardHook;
+
+        public ISettings Settings => _settings;
 
         public Shortcuts()
         {
             InitializeComponent();
+            DataContext = this;
         }
 
         private void OnKeyPressedReleased(int vk, bool isDown)
@@ -156,6 +161,7 @@ namespace EverythingToolbar.Settings
         {
             _startMenuInterceptor.Disable();
             _shortcutListener.IsEnabled = false;
+            _doubleCtrlListener.Disable();
 
             Modifiers = (ModifierKeys)_settings.ShortcutModifiers;
             Key = (Key)_settings.ShortcutKey;
@@ -176,6 +182,9 @@ namespace EverythingToolbar.Settings
             {
                 _shortcutListener.SetShortcut(Key, Modifiers);
             }
+
+            // Re-install double-Ctrl hook; SearchHost already provided the real handler.
+            _doubleCtrlListener.Refresh();
         }
     }
 }

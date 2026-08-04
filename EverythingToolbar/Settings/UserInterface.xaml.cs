@@ -34,6 +34,16 @@ namespace EverythingToolbar.Settings
             new(Resources.ItemTemplateNormal, "Normal"),
             new(Resources.ItemTemplateNormalDetailed, "NormalDetailed"),
         ];
+
+        public List<KeyValuePair<string, string>> Themes { get; } =
+        [
+            new(Resources.ThemeSystem, ThemeManager.System),
+            new(Resources.ThemeLight, ThemeManager.Light),
+            new(Resources.ThemeDark, ThemeManager.Dark),
+            new(Resources.ThemeNord, ThemeManager.Nord),
+            new(Resources.ThemeOneDark, ThemeManager.OneDark),
+        ];
+
         public List<KeyValuePair<string, string>> Languages { get; } = CultureHelper.GetAvailableLanguages();
 
         public string SelectedLanguage

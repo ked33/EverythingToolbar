@@ -458,7 +458,15 @@ namespace EverythingToolbar.Controls
             string[] files = [SelectedSearchResult.FullPathAndFileName];
             var data = new DataObject(DataFormats.FileDrop, files);
             data.SetData(DataFormats.Text, files[0]);
-            DragDrop.DoDragDrop(SearchResultsListView, data, DragDropEffects.All);
+
+            // Default Move; hold Ctrl to Copy. Preferred DropEffect helps Explorer honor the intent.
+            var dragDropEffect =
+                (Keyboard.Modifiers & ModifierKeys.Control) != 0 ? DragDropEffects.Copy : DragDropEffects.Move;
+            data.SetData(
+                "Preferred DropEffect",
+                new System.IO.MemoryStream(System.BitConverter.GetBytes((int)dragDropEffect))
+            );
+            DragDrop.DoDragDrop(SearchResultsListView, data, DragDropEffects.Copy | DragDropEffects.Move);
             return true;
         }
 

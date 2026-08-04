@@ -735,4 +735,56 @@
   <data name="MessageBoxRestartMessage" xml:space="preserve">
     <value>A restart is required for the language changes to take effect. Do you want to restart now?</value>
   </data>
+
+  <data name="ThemeSystem" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="ThemeLight" xml:space="preserve">
+    <value>Light</value>
+  </data>
+  <data name="ThemeDark" xml:space="preserve">
+    <value>Dark</value>
+  </data>
+  <data name="ThemeNord" xml:space="preserve">
+    <value>Nord</value>
+  </data>
+  <data name="ThemeOneDark" xml:space="preserve">
+    <value>One Dark</value>
+  </data>
+  <data name="SettingsTheme" xml:space="preserve">
+    <value>Color theme</value>
+  </data>
+  <data name="SettingsThemeHelp" xml:space="preserve">
+    <value>Override the application color theme</value>
+  </data>
+  <data name="SettingsOpenSearchWindowOnDoubleCtrl" xml:space="preserve">
+    <value>Open search window on double Ctrl</value>
+  </data>
+  <data name="SettingsOpenSearchWindowOnDoubleCtrlHelp" xml:space="preserve">
+    <value>Double-tap the left or right Ctrl key to open or toggle the search window</value>
+  </data>
+  <data name="SettingsDoubleCtrlProcessBlacklist" xml:space="preserve">
+    <value>Double Ctrl process blacklist</value>
+  </data>
+  <data name="SettingsDoubleCtrlProcessBlacklistHelp" xml:space="preserve">
+    <value>Comma-separated process names where double Ctrl is ignored (e.g. games)</value>
+  </data>
+  <data name="SettingsKeepaliveInterval" xml:space="preserve">
+    <value>Keepalive interval (seconds)</value>
+  </data>
+  <data name="SettingsKeepaliveIntervalHelp" xml:space="preserve">
+    <value>How often the hidden search host pings Everything after long idle</value>
+  </data>
+  <data name="SettingsDefaultSearchPath" xml:space="preserve">
+    <value>Default search directory</value>
+  </data>
+  <data name="SettingsDefaultSearchPathHelp" xml:space="preserve">
+    <value>When the search box is empty, results are limited to this directory</value>
+  </data>
+  <data name="SettingsDebugLoggingEnabled" xml:space="preserve">
+    <value>Enable debug logging</value>
+  </data>
+  <data name="SettingsDebugLoggingEnabledHelp" xml:space="preserve">
+    <value>Write verbose logs to the temporary EverythingToolbar.log file</value>
+  </data>
 </root>

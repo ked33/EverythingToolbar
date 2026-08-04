@@ -6,6 +6,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
+using EverythingToolbar.Helpers;
 using NLog;
 using Windows.UI.ViewManagement;
 using Wpf.Ui.Appearance;
@@ -103,11 +104,14 @@ namespace EverythingToolbar.Services
 
         public Theme GetEffectiveTheme(ThemeFlavor flavor)
         {
-            switch (_settings.ThemeOverride.ToLowerInvariant())
+            var scheme = ThemeManager.Normalize(_settings.ThemeOverride);
+            switch (scheme)
             {
-                case "light":
+                case ThemeManager.Light:
                     return Theme.Light;
-                case "dark":
+                case ThemeManager.Dark:
+                case ThemeManager.Nord:
+                case ThemeManager.OneDark:
                     return Theme.Dark;
             }
 
@@ -122,6 +126,8 @@ namespace EverythingToolbar.Services
             RemoveRegistration(root);
             var registration = new Registration { Root = new WeakReference<FrameworkElement>(root), Surface = surface };
             _registrations.Add(registration);
+
+            ThemeManager.UpdateHighlightBrush(_settings.ThemeOverride);
 
             var systemTheme = GetEffectiveTheme(ThemeFlavor.System);
             var appTheme = GetEffectiveTheme(ThemeFlavor.App);
@@ -178,6 +184,8 @@ namespace EverythingToolbar.Services
             var appTheme = GetEffectiveTheme(ThemeFlavor.App);
             Logger.Debug("Applying theme (system: {system}, app: {app})", systemTheme, appTheme);
 
+            ThemeManager.UpdateHighlightBrush(_settings.ThemeOverride);
+
             _registrations.RemoveAll(r => !r.Root.TryGetTarget(out _));
 
             if (_registrations.Any(r => r.Surface == ThemedSurface.AppWindow))
@@ -216,13 +224,30 @@ namespace EverythingToolbar.Services
                 root.Resources.MergedDictionaries.Remove(dict);
             registration.AddedDictionaries.Clear();
 
-            var profile = _windowsPolicy.GetEffectiveWindowsVersion() >= WindowsVersion.Windows11 ? "Win11" : "Win10";
+            var isWindows11 = _windowsPolicy.GetEffectiveWindowsVersion() >= WindowsVersion.Windows11;
+            var profile = isWindows11 ? "Win11" : "Win10";
+            var isLight = systemTheme == Theme.Light;
 
             AddWpfUiBase(registration, root, systemTheme);
 
-            AddResource(registration, root, $"Themes/{profile}/{(systemTheme == Theme.Light ? "Light" : "Dark")}.xaml");
+            var colorSchemePath = ThemeManager.GetColorSchemeRelativePath(
+                _settings.ThemeOverride,
+                isLight,
+                isWindows11
+            );
+            AddResource(registration, root, $"Themes/{colorSchemePath}");
+
+            // Custom schemes only replace the palette dictionary; still need platform control styles.
+            if (ThemeManager.IsCustomColorScheme(_settings.ThemeOverride))
+                AddResource(registration, root, $"Themes/{profile}/{(isLight ? "Light" : "Dark")}.xaml");
 
             AddResource(registration, root, $"Themes/{profile}/Controls.xaml");
+
+            if (ThemeManager.IsCustomColorScheme(_settings.ThemeOverride))
+            {
+                // Re-apply custom palette on top so it wins over platform Light/Dark.
+                AddResource(registration, root, $"Themes/{colorSchemePath}");
+            }
 
             AddAccentColor(registration, root, systemTheme);
         }
@@ -254,7 +279,11 @@ namespace EverythingToolbar.Services
         private void AddAccentColor(Registration registration, FrameworkElement root, Theme systemTheme)
         {
             SolidColorBrush brush;
-            if (_uiSettings != null)
+            if (ThemeManager.TryGetBuiltInAccent(_settings.ThemeOverride, out var builtIn))
+            {
+                brush = builtIn;
+            }
+            else if (_uiSettings != null)
             {
                 var color = _uiSettings.GetColorValue(
                     systemTheme == Theme.Light ? UIColorType.AccentDark1 : UIColorType.AccentLight2

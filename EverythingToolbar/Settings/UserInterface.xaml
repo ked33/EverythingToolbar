@@ -79,6 +79,23 @@
         Background="{ui:ThemeResource CardBackgroundFillColorDefaultBrush}"
         BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
         BorderThickness="1 1 1 0"
+        CornerRadius="0">
+        <controls:SettingItem Title="{x:Static properties:Resources.SettingsTheme}" HelpText="{x:Static properties:Resources.SettingsThemeHelp}">
+          <controls:SettingItem.SettingContent>
+            <ComboBox
+              HorizontalAlignment="Right"
+              DisplayMemberPath="Key"
+              ItemsSource="{Binding Themes}"
+              SelectedValue="{Binding Settings.ThemeOverride, Mode=TwoWay}"
+              SelectedValuePath="Value" />
+          </controls:SettingItem.SettingContent>
+        </controls:SettingItem>
+      </Border>
+      <Border
+        Padding="16"
+        Background="{ui:ThemeResource CardBackgroundFillColorDefaultBrush}"
+        BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
+        BorderThickness="1 1 1 0"
         CornerRadius="0,0,0,0">
         <controls:SettingItem Title="{x:Static properties:Resources.SettingsThumbnailsEnabled}" HelpText="{x:Static properties:Resources.SettingsThumbnailsHelp}">
           <controls:SettingItem.SettingContent>

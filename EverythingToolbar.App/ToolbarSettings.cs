@@ -60,6 +60,57 @@ namespace EverythingToolbar.App
         int ShortcutKey { get; set; }
 
         [Option(DefaultValue = false)]
+        bool IsDoubleCtrlOpenSearchWindow { get; set; }
+
+        [Option(DefaultValue = "")]
+        string DoubleCtrlProcessBlacklist { get; set; }
+
+        [Option(DefaultValue = "")]
+        string DefaultSearchPath { get; set; }
+
+        [Option(DefaultValue = "Ctrl+I")]
+        string ToggleMatchCaseShortcut { get; set; }
+
+        [Option(DefaultValue = "Ctrl+B")]
+        string ToggleMatchWholeWordShortcut { get; set; }
+
+        [Option(DefaultValue = "Ctrl+U")]
+        string ToggleMatchPathShortcut { get; set; }
+
+        [Option(DefaultValue = "Ctrl+R")]
+        string ToggleRegexShortcut { get; set; }
+
+        [Option(DefaultValue = "Enter")]
+        string OpenResultShortcut { get; set; }
+
+        [Option(DefaultValue = "Ctrl+Enter")]
+        string OpenPathShortcut { get; set; }
+
+        [Option(DefaultValue = "Shift+Enter")]
+        string OpenInEverythingShortcut { get; set; }
+
+        [Option(DefaultValue = "Ctrl+Shift+Enter")]
+        string RunAsAdminShortcut { get; set; }
+
+        [Option(DefaultValue = "Alt+Enter")]
+        string ShowFilePropertiesShortcut { get; set; }
+
+        [Option(DefaultValue = "Ctrl+C")]
+        string CopyFileShortcut { get; set; }
+
+        [Option(DefaultValue = "Alt+C")]
+        string CopyNameShortcut { get; set; }
+
+        [Option(DefaultValue = "Shift+Alt+C")]
+        string CopyFullPathShortcut { get; set; }
+
+        [Option(DefaultValue = false)]
+        bool IsDebugLoggingEnabled { get; set; }
+
+        [Option(DefaultValue = 60)]
+        int KeepaliveIntervalSeconds { get; set; }
+
+        [Option(DefaultValue = false)]
         bool IsAnimationsDisabled { get; set; }
 
         [Option(DefaultValue = false)]

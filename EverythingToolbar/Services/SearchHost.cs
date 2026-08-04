@@ -9,6 +9,7 @@ namespace EverythingToolbar.Services
     {
         private readonly SearchWindowController _controller;
         private readonly GlobalShortcutListener _shortcutListener;
+        private readonly DoubleCtrlListener _doubleCtrlListener;
         private readonly StartMenuSearchInterceptor _startMenuInterceptor;
         private readonly SearchWindow _searchWindow;
         private readonly TaskbarInfoProvider _taskbarInfo;
@@ -21,6 +22,7 @@ namespace EverythingToolbar.Services
         public SearchHost(
             SearchWindowController controller,
             GlobalShortcutListener shortcutListener,
+            DoubleCtrlListener doubleCtrlListener,
             StartMenuSearchInterceptor startMenuInterceptor,
             SearchWindow searchWindow,
             TaskbarInfoProvider taskbarInfo,
@@ -30,6 +32,7 @@ namespace EverythingToolbar.Services
         {
             _controller = controller;
             _shortcutListener = shortcutListener;
+            _doubleCtrlListener = doubleCtrlListener;
             _startMenuInterceptor = startMenuInterceptor;
             _searchWindow = searchWindow;
             _taskbarInfo = taskbarInfo;
@@ -44,6 +47,7 @@ namespace EverythingToolbar.Services
 
             _controller.SetIconMode(iconMode);
             _shortcutListener.Initialize(_controller.ToggleSearchUi);
+            _doubleCtrlListener.Initialize(_controller.ToggleSearchUi);
             _startMenuInterceptor.Initialize(placementTarget != null ? ShowSearchUiAtToolbar : ShowSearchUiStandalone);
 
             _placement = new SearchWindowPlacement(_taskbarInfo, _settings, _windowsPolicy)
@@ -82,6 +86,7 @@ namespace EverythingToolbar.Services
             _preWarmOperation = null;
 
             _shortcutListener.Disable();
+            _doubleCtrlListener.Disable();
             _startMenuInterceptor.Disable();
 
             _controller.Hide();

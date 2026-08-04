@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using System.Windows.Media;
 
 namespace EverythingToolbar.Helpers
 {
@@ -54,7 +55,10 @@ namespace EverythingToolbar.Helpers
 
                 var run = new Run(segments[i]);
                 if (IsMatch(i))
+                {
                     run.FontWeight = FontWeights.Bold;
+                    run.Foreground = ThemeManager.HighlightBrush;
+                }
 
                 inlines.Add(run);
             }
@@ -82,9 +86,15 @@ namespace EverythingToolbar.Helpers
                 // Clearing rather than assigning Normal keeps an unhighlighted segment inheriting
                 // its weight, exactly as a freshly constructed run would.
                 if (IsMatch(i))
+                {
                     run.FontWeight = FontWeights.Bold;
+                    run.Foreground = ThemeManager.HighlightBrush;
+                }
                 else
+                {
                     run.ClearValue(TextElement.FontWeightProperty);
+                    run.ClearValue(TextElement.ForegroundProperty);
+                }
 
                 inline = next;
             }
