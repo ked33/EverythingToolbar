@@ -1,227 +1,91 @@
-using System.Collections.Generic;
-
 namespace EverythingToolbar.Helpers
 {
     /// <summary>
-    /// Pure double-Ctrl tap detector. Tracks chords, mouse buttons, and stale state.
+    /// Double-tap detector for a bare modifier (Ctrl), aligned with SwiftList's
+    /// <c>ModifierDoubleTapDetector</c>:
+    /// <list type="bullet">
+    /// <item>Must release between taps (ignores OS key-repeat).</item>
+    /// <item>Second tap must fall in (MinInterval, MaxInterval) ms after the first down.</item>
+    /// <item>Min interval rejects contact bounce that would look like a single physical press.</item>
+    /// <item>Any non-modifier key (or mouse) resets the in-progress sequence.</item>
+    /// </list>
     /// </summary>
     public sealed class DoubleCtrlDetector
     {
-        private const long StandaloneCtrlTapThresholdMilliseconds = 200;
-        private const long StateTimeoutMilliseconds = 5000;
-        private readonly long _thresholdMilliseconds;
-        private readonly HashSet<uint> _pressedNonCtrlKeys = new();
-        private readonly Dictionary<uint, long> _keyPressTimestamps = new();
-        private bool _isCtrlPressed;
-        private bool _ctrlChordUsed;
-        private bool _suppressTapArmOnCurrentCtrlRelease;
-        private bool _isMouseButtonPressed;
-        private long _mouseButtonPressTimestamp;
-        private long _currentCtrlDownTicks;
-        private long _lastCtrlTapTicks;
-        private bool _currentCtrlIsLeft;
-        private bool _lastCtrlTapIsLeft;
+        /// <summary>Reject second downs closer than this (bounce / chatter).</summary>
+        public const int MinIntervalMs = 100;
 
-        private int _triggerCount;
-        private int _autoCleanupCount;
-        private int _staleKeyCleanupCount;
-        private int _staleMouseCleanupCount;
+        /// <summary>Second down must arrive before this after the first down.</summary>
+        public const int MaxIntervalMs = 500;
 
-        public DoubleCtrlDetector(long thresholdMilliseconds)
-        {
-            _thresholdMilliseconds = thresholdMilliseconds;
-        }
+        private const int DoubleTapClickCount = 2;
 
-        public bool HasPendingSecondPress => _lastCtrlTapTicks > 0;
+        // Canonical id for any Ctrl vk (LCONTROL / RCONTROL / CONTROL).
+        private const int CtrlKeyId = 0x11;
 
-        public int TriggerCount => _triggerCount;
-        public int AutoCleanupCount => _autoCleanupCount;
-        public int StaleKeyCleanupCount => _staleKeyCleanupCount;
-        public int StaleMouseCleanupCount => _staleMouseCleanupCount;
+        private long _lastDownTime;
+        private int _lastKeyId;
+        private int _clickCount;
+        private bool _wasReleased = true;
+
+        public int TriggerCount { get; private set; }
 
         public void Reset()
         {
-            _isCtrlPressed = false;
-            _ctrlChordUsed = false;
-            _suppressTapArmOnCurrentCtrlRelease = false;
-            _isMouseButtonPressed = false;
-            _mouseButtonPressTimestamp = 0;
-            _currentCtrlDownTicks = 0;
-            _lastCtrlTapTicks = 0;
-            _currentCtrlIsLeft = false;
-            _lastCtrlTapIsLeft = false;
-            _pressedNonCtrlKeys.Clear();
-            _keyPressTimestamps.Clear();
+            _lastDownTime = 0;
+            _lastKeyId = 0;
+            _clickCount = 0;
+            _wasReleased = true;
         }
 
-        private bool CleanupStaleState(long now)
+        /// <summary>Call on WM_KEYUP / WM_SYSKEYUP for Ctrl so the next down can count as a new tap.</summary>
+        public void OnCtrlKeyUp() => _wasReleased = true;
+
+        /// <summary>
+        /// Feed a Ctrl key-down. Returns true when a double-tap is completed.
+        /// </summary>
+        public bool OnCtrlKeyDown(long nowMs)
         {
-            var hadStaleState = false;
-
-            var staleKeys = new List<uint>();
-            foreach (var kvp in _keyPressTimestamps)
-            {
-                if (now - kvp.Value > StateTimeoutMilliseconds)
-                {
-                    staleKeys.Add(kvp.Key);
-                    hadStaleState = true;
-                }
-            }
-
-            foreach (var key in staleKeys)
-            {
-                _pressedNonCtrlKeys.Remove(key);
-                _keyPressTimestamps.Remove(key);
-                _staleKeyCleanupCount++;
-            }
-
-            if (
-                _isMouseButtonPressed
-                && _mouseButtonPressTimestamp > 0
-                && now - _mouseButtonPressTimestamp > StateTimeoutMilliseconds
-            )
-            {
-                _isMouseButtonPressed = false;
-                _mouseButtonPressTimestamp = 0;
-                _staleMouseCleanupCount++;
-                hadStaleState = true;
-            }
-
-            if (hadStaleState)
-                _autoCleanupCount++;
-
-            return hadStaleState;
-        }
-
-        private bool DetectAnomalousState()
-        {
-            if (_pressedNonCtrlKeys.Count != _keyPressTimestamps.Count)
-                return true;
-
-            if (_isMouseButtonPressed && _mouseButtonPressTimestamp == 0)
-                return true;
-
-            if (!_isMouseButtonPressed && _mouseButtonPressTimestamp != 0)
-                return true;
-
-            return false;
-        }
-
-        public void ResetIfAnomalous()
-        {
-            if (DetectAnomalousState())
-                Reset();
-        }
-
-        public bool RegisterCtrlDown(long now, bool isLeftCtrl)
-        {
-            if (_isCtrlPressed)
+            // Key-repeat: never released since last press — ignore (SwiftList _wasReleased guard).
+            if (!_wasReleased)
                 return false;
 
-            var hasOtherInputHeld = _pressedNonCtrlKeys.Count > 0 || _isMouseButtonPressed;
+            _wasReleased = false;
 
-            _currentCtrlDownTicks = now;
-            _isCtrlPressed = true;
-            _ctrlChordUsed = hasOtherInputHeld;
-            _currentCtrlIsLeft = isLeftCtrl;
+            var keyId = CtrlKeyId;
+            var elapsed = nowMs - _lastDownTime;
 
-            if (
-                !hasOtherInputHeld
-                && _lastCtrlTapTicks > 0
-                && now - _lastCtrlTapTicks <= _thresholdMilliseconds
-                && _lastCtrlTapIsLeft == isLeftCtrl
-            )
+            if (keyId == _lastKeyId && elapsed > MinIntervalMs && elapsed < MaxIntervalMs)
             {
-                _lastCtrlTapTicks = 0;
-                _suppressTapArmOnCurrentCtrlRelease = true;
-                _triggerCount++;
-                return true;
+                _clickCount++;
+                if (_clickCount >= DoubleTapClickCount)
+                {
+                    _clickCount = 0;
+                    _lastDownTime = 0;
+                    _lastKeyId = 0;
+                    TriggerCount++;
+                    return true;
+                }
+
+                _lastDownTime = nowMs;
+                return false;
             }
 
-            _lastCtrlTapTicks = 0;
-            _suppressTapArmOnCurrentCtrlRelease = false;
+            // First tap of a new sequence (or second tap outside the window / different key).
+            _clickCount = 1;
+            _lastDownTime = nowMs;
+            _lastKeyId = keyId;
             return false;
         }
 
-        public bool RegisterCtrlDownWithCleanup(long now, bool isLeftCtrl, bool enableAutoCleanup)
+        /// <summary>Any non-Ctrl key or mouse activity clears an in-progress double-tap sequence.</summary>
+        public void ResetOnOtherInput()
         {
-            if (enableAutoCleanup)
-                CleanupStaleState(now);
-
-            return RegisterCtrlDown(now, isLeftCtrl);
-        }
-
-        public void RegisterCtrlUp(long now)
-        {
-            if (!_isCtrlPressed)
-                return;
-
-            _isCtrlPressed = false;
-            var pressDuration = now - _currentCtrlDownTicks;
-            var wasLeftCtrl = _currentCtrlIsLeft;
-            _currentCtrlDownTicks = 0;
-
-            if (_ctrlChordUsed)
-            {
-                _ctrlChordUsed = false;
-                _suppressTapArmOnCurrentCtrlRelease = false;
-                _lastCtrlTapTicks = 0;
-                return;
-            }
-
-            if (_suppressTapArmOnCurrentCtrlRelease)
-            {
-                _suppressTapArmOnCurrentCtrlRelease = false;
-                return;
-            }
-
-            if (pressDuration <= StandaloneCtrlTapThresholdMilliseconds)
-            {
-                _lastCtrlTapTicks = now;
-                _lastCtrlTapIsLeft = wasLeftCtrl;
-            }
-            else
-            {
-                _lastCtrlTapTicks = 0;
-            }
-        }
-
-        public void RegisterNonCtrlKeyDown(uint virtualKey)
-        {
-            _pressedNonCtrlKeys.Add(virtualKey);
-            _keyPressTimestamps[virtualKey] = System.Environment.TickCount64;
-            RegisterInterruptingInput();
-        }
-
-        public void RegisterNonCtrlKeyUp(uint virtualKey)
-        {
-            _pressedNonCtrlKeys.Remove(virtualKey);
-            _keyPressTimestamps.Remove(virtualKey);
-            RegisterInterruptingInput();
-        }
-
-        public void RegisterMouseButtonDown()
-        {
-            _isMouseButtonPressed = true;
-            _mouseButtonPressTimestamp = System.Environment.TickCount64;
-            RegisterInterruptingInput();
-        }
-
-        public void RegisterMouseButtonUp()
-        {
-            _isMouseButtonPressed = false;
-            _mouseButtonPressTimestamp = 0;
-            RegisterInterruptingInput();
-        }
-
-        public void RegisterMouseInput() => RegisterInterruptingInput();
-
-        private void RegisterInterruptingInput()
-        {
-            if (_isCtrlPressed)
-                _ctrlChordUsed = true;
-
-            _lastCtrlTapTicks = 0;
+            _clickCount = 0;
+            _lastDownTime = 0;
+            _lastKeyId = 0;
+            // Do not force _wasReleased here: if Ctrl is still physically held, key-repeat
+            // must remain suppressed until a real key-up arrives.
         }
     }
 }

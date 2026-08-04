@@ -8,13 +8,11 @@ using Windows.Win32;
 namespace EverythingToolbar.Services
 {
     /// <summary>
-    /// Double-Ctrl open listener. Uses the same dedicated-thread LowLevelKeyboardHook pattern
-    /// as GlobalShortcutListener so EcoQoS does not drop taps after long idle.
-    /// Mouse buttons are sampled via GetAsyncKeyState to detect chords without a second hook type.
+    /// Double-Ctrl open listener. Uses the dedicated-thread <see cref="LowLevelKeyboardHook"/>
+    /// and a SwiftList-style double-tap detector (release required, 100–500 ms window).
     /// </summary>
     public sealed class DoubleCtrlListener : IDisposable
     {
-        private const long ThresholdMilliseconds = 350;
         private const int VkLbutton = 0x01;
         private const int VkRbutton = 0x02;
         private const int VkMbutton = 0x04;
@@ -27,7 +25,7 @@ namespace EverythingToolbar.Services
         private static readonly ILogger Logger = ToolbarLogger.GetLogger<DoubleCtrlListener>();
 
         private readonly ISettings _settings;
-        private readonly DoubleCtrlDetector _detector = new(ThresholdMilliseconds);
+        private readonly DoubleCtrlDetector _detector = new();
         private readonly LowLevelKeyboardHook _keyboardHook;
 
         private Action? _handler;
@@ -77,7 +75,11 @@ namespace EverythingToolbar.Services
 
         private void OnSettingsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName is nameof(ISettings.IsDoubleCtrlOpenSearchWindow) or nameof(ISettings.DoubleCtrlProcessBlacklist))
+            if (
+                e.PropertyName
+                is nameof(ISettings.IsDoubleCtrlOpenSearchWindow)
+                    or nameof(ISettings.DoubleCtrlProcessBlacklist)
+            )
                 _dispatcher?.BeginInvoke(UpdateHook);
         }
 
@@ -108,40 +110,31 @@ namespace EverythingToolbar.Services
                 if (!_settings.IsDoubleCtrlOpenSearchWindow || isInjected)
                     return false;
 
-                SyncMouseButtons();
+                // Mouse chord while double-tapping Ctrl should cancel the sequence (same idea as
+                // SwiftList ResetOnOtherKey).
+                if (SyncMouseButtonsAndDetectChange())
+                    _detector.ResetOnOtherInput();
 
-                var now = Environment.TickCount64;
-
-                if (vk is VkLcontrol or VkRcontrol or VkControl)
+                if (IsCtrlVk(vk))
                 {
-                    var isLeft = vk is VkLcontrol or VkControl;
-                    if (vk == VkControl)
-                    {
-                        // Generic VK_CONTROL: prefer left if either side reports down on key-up sampling.
-                        isLeft = true;
-                    }
-
                     if (isDown)
                     {
-                        _detector.ResetIfAnomalous();
-                        var triggered = _detector.RegisterCtrlDownWithCleanup(now, isLeft, enableAutoCleanup: true);
+                        var now = Environment.TickCount64;
+                        var triggered = _detector.OnCtrlKeyDown(now);
                         if (triggered && CanTrigger())
-                        {
                             _dispatcher?.BeginInvoke(() => _handler?.Invoke());
-                        }
                     }
                     else
                     {
-                        _detector.RegisterCtrlUp(now);
+                        _detector.OnCtrlKeyUp();
                     }
 
                     return false; // never swallow Ctrl
                 }
 
+                // Any other key breaks an in-progress double-tap (SwiftList ResetOnOtherKey).
                 if (isDown)
-                    _detector.RegisterNonCtrlKeyDown((uint)vk);
-                else
-                    _detector.RegisterNonCtrlKeyUp((uint)vk);
+                    _detector.ResetOnOtherInput();
 
                 return false;
             }
@@ -152,7 +145,10 @@ namespace EverythingToolbar.Services
             }
         }
 
-        private void SyncMouseButtons()
+        private static bool IsCtrlVk(int vk) => vk is VkLcontrol or VkRcontrol or VkControl;
+
+        /// <returns>True when mouse button pressed-state changed (down edge or up edge).</returns>
+        private bool SyncMouseButtonsAndDetectChange()
         {
             var mouseDown =
                 IsKeyDown(VkLbutton)
@@ -161,14 +157,9 @@ namespace EverythingToolbar.Services
                 || IsKeyDown(VkXbutton1)
                 || IsKeyDown(VkXbutton2);
 
-            if (mouseDown && !_mouseWasDown)
-                _detector.RegisterMouseButtonDown();
-            else if (!mouseDown && _mouseWasDown)
-                _detector.RegisterMouseButtonUp();
-            else if (mouseDown)
-                _detector.RegisterMouseInput();
-
+            var changed = mouseDown != _mouseWasDown;
             _mouseWasDown = mouseDown;
+            return changed;
         }
 
         private bool CanTrigger()
@@ -189,7 +180,12 @@ namespace EverythingToolbar.Services
 
                 using var process = Process.GetProcessById((int)pid);
                 var name = process.ProcessName;
-                foreach (var entry in blacklist.Split(new char[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                foreach (
+                    var entry in blacklist.Split(
+                        new char[] { ',', ';', ' ' },
+                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+                    )
+                )
                 {
                     var candidate = entry.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
                         ? entry[..^4]
