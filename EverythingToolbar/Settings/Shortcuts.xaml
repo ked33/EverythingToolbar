@@ -240,7 +240,7 @@
           <controls:SettingItem Title="{x:Static properties:Resources.ShortcutSelectFilter}">
             <controls:SettingItem.SettingContent>
               <StackPanel Orientation="Horizontal">
-                <ui:Button Content="Ctrl" Style="{StaticResource StaticShortcutButtonStyle}" />
+                <ui:Button Content="Alt" Style="{StaticResource StaticShortcutButtonStyle}" />
                 <ui:TextBlock VerticalAlignment="Center" Text="+" />
                 <ui:Button Content="0" Style="{StaticResource StaticShortcutButtonStyle}" />
                 <ui:TextBlock VerticalAlignment="Center" Text="-" />

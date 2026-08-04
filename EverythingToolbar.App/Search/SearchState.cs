@@ -113,10 +113,20 @@ namespace EverythingToolbar.App.Search
 
         public void SelectFilterFromIndex(int index)
         {
-            if (index < 0 || index >= _filterProvider.Filters.Count)
+            var filters = _filterProvider.Filters;
+            if (index < 0 || index >= filters.Count)
                 return;
 
-            Filter = _filterProvider.Filters[index];
+            var target = filters[index];
+
+            // Same shortcut again while this filter is active → switch back to the first filter ("All").
+            if (Filter.Equals(target) && filters.Count > 0 && !filters[0].Equals(target))
+            {
+                Filter = filters[0];
+                return;
+            }
+
+            Filter = target;
         }
 
         private string ApplyMacros(string searchTerm)

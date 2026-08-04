@@ -137,7 +137,8 @@ namespace EverythingToolbar.Search
                 return true;
             }
 
-            if (modifiers == ModifierKeys.Control && effectiveKey is >= Key.D0 and <= Key.D9)
+            // Alt+1..9,0 selects filter tabs 1..10; pressing the same shortcut again returns to "All".
+            if (modifiers == ModifierKeys.Alt && effectiveKey is >= Key.D0 and <= Key.D9)
             {
                 var index = effectiveKey == Key.D0 ? 9 : effectiveKey - Key.D1;
                 _searchState.SelectFilterFromIndex(index);

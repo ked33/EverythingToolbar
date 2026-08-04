@@ -28,6 +28,7 @@ namespace EverythingToolbar
 
         private bool _isFirstShow = true;
         private bool _isHiding;
+        private int _pendingSuppressedAltSystemChars;
         private readonly SearchWindowViewModel _viewModel;
         private readonly SearchWindowController _controller;
         private readonly SearchWindowAnimator _animator;
@@ -38,6 +39,8 @@ namespace EverythingToolbar
             _viewModel = viewModel;
             _controller = controller;
             InitializeComponent();
+
+            SourceInitialized += OnSearchWindowSourceInitialized;
 
             _animator = new SearchWindowAnimator(
                 this,
@@ -51,10 +54,14 @@ namespace EverythingToolbar
 
         private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
         {
-            if (e.Key is >= Key.D0 and <= Key.D9 && Keyboard.Modifiers == ModifierKeys.Control)
+            var key = e.Key == Key.System ? e.SystemKey : e.Key;
+
+            // Alt+1..9,0 selects filter tabs; same shortcut again returns to "All".
+            if (key is >= Key.D0 and <= Key.D9 && Keyboard.Modifiers == ModifierKeys.Alt)
             {
-                var index = e.Key == Key.D0 ? 9 : e.Key - Key.D1;
+                var index = key == Key.D0 ? 9 : key - Key.D1;
                 _viewModel.SelectFilterFromIndex(index);
+                SuppressNextAltSystemChar();
                 e.Handled = true;
             }
             else if (e.Key == Key.Escape)
@@ -69,8 +76,38 @@ namespace EverythingToolbar
             }
         }
 
+        private void SuppressNextAltSystemChar() => _pendingSuppressedAltSystemChars++;
+
+        private void OnSearchWindowSourceInitialized(object? sender, EventArgs e)
+        {
+            if (PresentationSource.FromVisual(this) is HwndSource hwndSource)
+                hwndSource.AddHook(SuppressHandledAltShortcutSystemChar);
+        }
+
+        private IntPtr SuppressHandledAltShortcutSystemChar(
+            IntPtr hwnd,
+            int msg,
+            IntPtr wParam,
+            IntPtr lParam,
+            ref bool handled
+        )
+        {
+            const int wmSyschar = 0x0106;
+
+            if (msg == wmSyschar && _pendingSuppressedAltSystemChars > 0)
+            {
+                _pendingSuppressedAltSystemChars--;
+                handled = true;
+                return IntPtr.Zero;
+            }
+
+            return IntPtr.Zero;
+        }
+
         private void OnLostKeyboardFocus(object? sender, KeyboardFocusChangedEventArgs e)
         {
+            _pendingSuppressedAltSystemChars = 0;
+
             if (e.NewFocus == null) // New focus outside application
             {
                 _controller.NotifyFocusLostToOutside();
