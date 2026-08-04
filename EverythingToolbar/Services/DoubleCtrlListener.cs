@@ -189,12 +189,7 @@ namespace EverythingToolbar.Services
 
                 using var process = Process.GetProcessById((int)pid);
                 var name = process.ProcessName;
-                foreach (
-                    var entry in blacklist.Split(
-                        [';',', ';', ' '],
-                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-                    )
-                )
+                foreach (var entry in blacklist.Split(new char[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                 {
                     var candidate = entry.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
                         ? entry[..^4]

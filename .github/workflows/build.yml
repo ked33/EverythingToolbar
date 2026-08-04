@@ -18,9 +18,6 @@ jobs:
           - runner: windows-2025
             arch: x64
             installer: Installer-x64.iss
-          - runner: windows-11-arm
-            arch: arm64
-            installer: Installer-arm64.iss
     uses: ./.github/workflows/_build.yml
     with:
       runner: ${{ matrix.runner }}
