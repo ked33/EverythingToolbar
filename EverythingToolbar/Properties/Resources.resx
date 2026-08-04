@@ -787,4 +787,13 @@
   <data name="SettingsDebugLoggingEnabledHelp" xml:space="preserve">
     <value>Write verbose logs to the temporary EverythingToolbar.log file</value>
   </data>
+  <data name="CustomActionsShortcut" xml:space="preserve">
+    <value>Shortcut</value>
+  </data>
+  <data name="MessageBoxCustomActionsShortcutInvalid" xml:space="preserve">
+    <value>At least one shortcut is invalid. Use combinations like Ctrl+S and include at least one modifier key.</value>
+  </data>
+  <data name="MessageBoxCustomActionsShortcutDuplicate" xml:space="preserve">
+    <value>Custom action shortcuts must be unique.</value>
+  </data>
 </root>

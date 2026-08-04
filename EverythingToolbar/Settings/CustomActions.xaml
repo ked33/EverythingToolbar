@@ -127,6 +127,22 @@
                   </Style>
                 </DataGridTextColumn.ElementStyle>
               </DataGridTextColumn>
+              <DataGridTextColumn
+                Width="1.2*"
+                Binding="{Binding Shortcut}"
+                Header="{x:Static properties:Resources.CustomActionsShortcut}">
+                <DataGridTextColumn.ElementStyle>
+                  <Style TargetType="{x:Type TextBlock}">
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding ShortcutValid}" Value="False">
+                        <Setter Property="Background" Value="{DynamicResource ErrorBackgroundBrush}" />
+                        <Setter Property="Height" Value="37" />
+                        <Setter Property="Padding" Value="0 8 0 0" />
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </DataGridTextColumn.ElementStyle>
+              </DataGridTextColumn>
               <DataGridTemplateColumn Width="1*" Header="{x:Static properties:Resources.CustomActionsType}">
                 <DataGridTemplateColumn.CellTemplate>
                   <DataTemplate>

@@ -1964,5 +1964,15 @@ namespace EverythingToolbar.Properties {
             get { return ResourceManager.GetString("SettingsDebugLoggingEnabledHelp", resourceCulture); }
         }
 
+        public static string CustomActionsShortcut {
+            get { return ResourceManager.GetString("CustomActionsShortcut", resourceCulture); }
+        }
+        public static string MessageBoxCustomActionsShortcutInvalid {
+            get { return ResourceManager.GetString("MessageBoxCustomActionsShortcutInvalid", resourceCulture); }
+        }
+        public static string MessageBoxCustomActionsShortcutDuplicate {
+            get { return ResourceManager.GetString("MessageBoxCustomActionsShortcutDuplicate", resourceCulture); }
+        }
+
     }
 }

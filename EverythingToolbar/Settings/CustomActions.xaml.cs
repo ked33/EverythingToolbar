@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using CommunityToolkit.Mvvm.DependencyInjection;
 using EverythingToolbar.Controls;
+using EverythingToolbar.Helpers;
 using NLog;
 
 namespace EverythingToolbar.Settings
@@ -53,6 +55,34 @@ namespace EverythingToolbar.Settings
                     .ShowDialogAsync();
                 return false;
             }
+
+            if (!TryNormalizeShortcuts(_actions))
+            {
+                FluentMessageBox
+                    .CreateError(
+                        Properties.Resources.MessageBoxCustomActionsShortcutInvalid,
+                        Properties.Resources.MessageBoxErrorTitle
+                    )
+                    .ShowDialogAsync();
+                return false;
+            }
+
+            if (
+                _actions
+                    .Where(r => !string.IsNullOrWhiteSpace(r.Shortcut))
+                    .GroupBy(r => r.Shortcut, StringComparer.OrdinalIgnoreCase)
+                    .Any(g => g.Count() > 1)
+            )
+            {
+                FluentMessageBox
+                    .CreateError(
+                        Properties.Resources.MessageBoxCustomActionsShortcutDuplicate,
+                        Properties.Resources.MessageBoxErrorTitle
+                    )
+                    .ShowDialogAsync();
+                return false;
+            }
+
             if (isAutoApplyCustomActions && _actions.Any(r => !r.ExpressionValid))
             {
                 FluentMessageBox
@@ -74,6 +104,32 @@ namespace EverythingToolbar.Settings
             return true;
         }
 
+        private static bool TryNormalizeShortcuts(IEnumerable<Rule> actions)
+        {
+            foreach (var action in actions)
+            {
+                if (string.IsNullOrWhiteSpace(action.Shortcut))
+                {
+                    action.Shortcut = string.Empty;
+                    continue;
+                }
+
+                if (
+                    !ShortcutUtils.TryParseShortcut(
+                        action.Shortcut,
+                        out var key,
+                        out var modifiers,
+                        requireModifier: true
+                    )
+                )
+                    return false;
+
+                action.Shortcut = ShortcutUtils.FormatShortcut(key, modifiers);
+            }
+
+            return true;
+        }
+
         private void AddItem(object sender, RoutedEventArgs e)
         {
             _actions.Add(
@@ -82,6 +138,7 @@ namespace EverythingToolbar.Settings
                     Name = "",
                     Type = FileType.Any,
                     Expression = "",
+                    Shortcut = "",
                     Command = "",
                 }
             );

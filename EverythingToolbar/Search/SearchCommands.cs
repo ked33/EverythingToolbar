@@ -145,6 +145,16 @@ namespace EverythingToolbar.Search
                 return true;
             }
 
+            // Custom action shortcuts (must include a modifier, same as settings validation).
+            if (
+                modifiers != ModifierKeys.None
+                && !ShortcutUtils.IsModifierKey(effectiveKey)
+                && TryRunCustomActionShortcut(effectiveKey, modifiers)
+            )
+            {
+                return true;
+            }
+
             if (effectiveKey == Key.Tab && modifiers is ModifierKeys.None or ModifierKeys.Shift)
             {
                 _searchState.CycleFilters(modifiers == ModifierKeys.Shift ? -1 : 1);
@@ -234,6 +244,37 @@ namespace EverythingToolbar.Search
         {
             if (!_customActions.TryRun(item))
                 _actions.Open(item);
+        }
+
+        /// <summary>
+        /// Runs the first custom action whose shortcut matches. Hides the window on success (local behavior).
+        /// </summary>
+        private bool TryRunCustomActionShortcut(Key key, ModifierKeys modifiers)
+        {
+            var item = _session.SelectedResult;
+            if (item == null)
+                return false;
+
+            foreach (var rule in _customActions.Load())
+            {
+                if (string.IsNullOrWhiteSpace(rule.Shortcut))
+                    continue;
+
+                if (!ShortcutUtils.MatchesShortcut(key, modifiers, rule.Shortcut, requireModifier: true))
+                    continue;
+
+                if (_customActions.TryRun(item, rule.Command))
+                {
+                    _controller.Hide();
+                    _session.ClearSelection();
+                    return true;
+                }
+
+                // Matched a shortcut but failed to run — still consume the key.
+                return true;
+            }
+
+            return false;
         }
 
         private void Act(SearchResult? target, Action<SearchResult> action, bool hide, bool clearSelection)

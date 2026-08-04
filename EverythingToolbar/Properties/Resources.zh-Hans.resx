@@ -735,4 +735,13 @@
   <data name="MessageBoxRestartMessage" xml:space="preserve">
     <value>语言更改需要重启系统才能生效。您现在要重启吗？</value>
   </data>
+  <data name="CustomActionsShortcut" xml:space="preserve">
+    <value>快捷键</value>
+  </data>
+  <data name="MessageBoxCustomActionsShortcutInvalid" xml:space="preserve">
+    <value>至少一个快捷键无效。请使用类似 Ctrl+S 的组合，并至少包含一个修饰键。</value>
+  </data>
+  <data name="MessageBoxCustomActionsShortcutDuplicate" xml:space="preserve">
+    <value>自定义操作的快捷键不能重复。</value>
+  </data>
 </root>
