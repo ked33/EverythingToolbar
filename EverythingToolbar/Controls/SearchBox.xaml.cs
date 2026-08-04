@@ -59,7 +59,12 @@ namespace EverythingToolbar.Controls
 
             if (_viewModel.Settings.IsSearchAsYouType)
             {
-                SearchTerm = TextBox.Text;
+                // Push into the DP (parent TwoWay binding) and also assign SearchState directly so
+                // query rebuild cannot be skipped if the binding update is deferred.
+                var text = TextBox.Text;
+                SearchTerm = text;
+                if (_viewModel.SearchState.SearchTerm != text)
+                    _viewModel.SearchState.SearchTerm = text;
             }
         }
 
@@ -79,12 +84,15 @@ namespace EverythingToolbar.Controls
             }
             if (
                 Keyboard.Modifiers == ModifierKeys.None
-                && e.Key == Key.Enter
+                && e.Key is Key.Enter or Key.Return
                 && !_viewModel.Settings.IsSearchAsYouType
                 && SearchTerm != TextBox.Text
             )
             {
-                SearchTerm = TextBox.Text;
+                var text = TextBox.Text;
+                SearchTerm = text;
+                if (_viewModel.SearchState.SearchTerm != text)
+                    _viewModel.SearchState.SearchTerm = text;
                 e.Handled = true;
                 return;
             }

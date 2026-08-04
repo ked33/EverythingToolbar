@@ -96,8 +96,6 @@ namespace EverythingToolbar.Search
 
             if (Matches(_settings.CopyNameShortcut, effectiveKey, modifiers, requireModifier: true))
             {
-                // Name-only copy: reuse path action's sibling via clipboard name if available.
-                // SearchResultActions exposes CopyPath; name copy goes through SelectedResult helper if present.
                 if (_session.SelectedResult != null)
                 {
                     try
@@ -108,6 +106,9 @@ namespace EverythingToolbar.Search
                     {
                         // ignore clipboard failures
                     }
+
+                    _controller.Hide();
+                    _session.ClearSelection();
                 }
                 return true;
             }
@@ -215,11 +216,12 @@ namespace EverythingToolbar.Search
         public void ShowSelectedInEverything(SearchResult? target = null) =>
             Act(target, _actions.ShowInEverything, hide: true, clearSelection: true);
 
+        // Local behavior: close the search window after copying so the user can paste immediately.
         public void CopySelected(SearchResult? target = null) =>
-            Act(target, _actions.CopyToClipboard, hide: false, clearSelection: false);
+            Act(target, _actions.CopyToClipboard, hide: true, clearSelection: true);
 
         public void CopySelectedPath(SearchResult? target = null) =>
-            Act(target, _actions.CopyPathToClipboard, hide: false, clearSelection: false);
+            Act(target, _actions.CopyPathToClipboard, hide: true, clearSelection: true);
 
         public void ShowSelectedWindowsContextMenu(SearchResult? target = null) =>
             Act(target, _actions.ShowWindowsContextMenu, hide: false, clearSelection: false);

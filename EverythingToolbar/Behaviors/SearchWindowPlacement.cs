@@ -5,10 +5,7 @@ using System.Windows.Forms;
 using System.Windows.Interop;
 using Microsoft.Xaml.Behaviors;
 using NLog;
-using Windows.Win32;
 using Windows.Win32.Foundation;
-using FlowDirection = System.Windows.FlowDirection;
-using Point = System.Drawing.Point;
 using Size = System.Windows.Size;
 
 namespace EverythingToolbar.Behaviors
@@ -87,12 +84,11 @@ namespace EverythingToolbar.Behaviors
 
         private void OnShowing(object? sender, ShowingEventArgs e)
         {
+            _ = e; // AtCursor/PlacementTarget ignored: local fork always centers.
             _dpiScalingFactor = GetScalingFactor();
 
-            var useCursor = e.AtCursor || PlacementTarget == null;
-
-            var position = useCursor ? CalculatePositionFromTaskbar() : CalculatePositionFromTarget();
-
+            // Always center on the working area (both axes), matching pre-v3 WindowPlacement.
+            var position = CalculateCenteredPosition();
             var size = GetTargetWindowSizeDip();
 
             AssociatedObject.AnimateShow(
@@ -104,129 +100,35 @@ namespace EverythingToolbar.Behaviors
             );
         }
 
-        private RECT CalculatePositionFromTarget()
-        {
-            if (
-                PlacementTarget == null
-                || PresentationSource.FromVisual(PlacementTarget) as HwndSource is not { } hwndSource
-            )
-            {
-                Logger.Error("Failed to get HwndSource from PlacementTarget. Cannot calculate window position.");
-                return new RECT();
-            }
-
-            PInvoke.GetWindowRect((HWND)hwndSource.Handle, out var nativeRect);
-            var placementTargetPos = new Point(nativeRect.left, nativeRect.top);
-            var screen = Screen.FromPoint(placementTargetPos);
-            var workingArea = screen.WorkingArea;
-            var screenBounds = screen.Bounds;
-            var windowSize = GetTargetWindowSize();
-            var taskbarSize = _taskbarState.TaskbarSize;
-            var margin = GetMargin();
-
-            var windowPosition = new RECT();
-            switch (_taskbarState.TaskbarEdge)
-            {
-                case Edge.Bottom:
-                case Edge.Top:
-                    var topDockPos = Math.Max(workingArea.Top, screenBounds.Top + (int)taskbarSize.Height);
-                    var bottomDockPos = Math.Min(workingArea.Bottom, screenBounds.Bottom - (int)taskbarSize.Height);
-
-                    windowPosition.right = Math.Min(
-                        nativeRect.left + (int)windowSize.Width,
-                        workingArea.Right - margin
-                    );
-                    windowPosition.left = Math.Max(
-                        workingArea.Left + margin,
-                        windowPosition.right - (int)windowSize.Width
-                    );
-                    windowPosition.right = windowPosition.left + (int)windowSize.Width;
-
-                    windowPosition.bottom = Math.Min(nativeRect.top - margin, bottomDockPos - margin);
-                    windowPosition.top = Math.Max(topDockPos + margin, windowPosition.bottom - (int)windowSize.Height);
-                    windowPosition.bottom = windowPosition.top + (int)windowSize.Height;
-                    break;
-                case Edge.Left:
-                case Edge.Right:
-                    var leftDockPos = Math.Max(workingArea.Left, screenBounds.Left + (int)taskbarSize.Width);
-                    var rightDockPos = Math.Min(workingArea.Right, screenBounds.Right - (int)taskbarSize.Width);
-
-                    windowPosition.bottom = Math.Min(
-                        nativeRect.top + (int)windowSize.Height,
-                        workingArea.Bottom - margin
-                    );
-                    windowPosition.top = Math.Max(
-                        workingArea.Top + margin,
-                        windowPosition.bottom - (int)windowSize.Height
-                    );
-                    windowPosition.bottom = windowPosition.top + (int)windowSize.Height;
-
-                    windowPosition.right = Math.Min(nativeRect.left - margin, rightDockPos - margin);
-                    windowPosition.left = Math.Max(leftDockPos + margin, windowPosition.right - (int)windowSize.Width);
-                    windowPosition.right = windowPosition.left + (int)windowSize.Width;
-                    break;
-            }
-            return windowPosition;
-        }
-
-        private RECT CalculatePositionFromTaskbar()
+        /// <summary>
+        /// Center the popup on the monitor that contains the cursor (working area, both axes).
+        /// </summary>
+        private RECT CalculateCenteredPosition()
         {
             var screen = Screen.FromPoint(Cursor.Position);
             var taskbar = FindDockedTaskBar(screen);
-            var windowSize = GetTargetWindowSize();
-            var margin = GetMargin();
-
-            var windowPosition = new RECT();
-
-            if (taskbar.Edge == Edge.Top)
-            {
-                windowPosition.top = taskbar.Position.Bottom + margin;
-                windowPosition.bottom = Math.Min(
-                    windowPosition.top + (int)windowSize.Height,
-                    screen.WorkingArea.Bottom - margin
-                );
-                windowPosition = SetHorizontalPosition(windowPosition, screen.WorkingArea, windowSize, margin);
-            }
-            else if (taskbar.Edge == Edge.Bottom)
-            {
-                windowPosition.bottom = taskbar.Position.Y - margin;
-                windowPosition.top = Math.Max(
-                    screen.WorkingArea.Top + margin,
-                    windowPosition.bottom - (int)windowSize.Height
-                );
-                windowPosition = SetHorizontalPosition(windowPosition, screen.WorkingArea, windowSize, margin);
-            }
-            else if (taskbar.Edge == Edge.Left)
-            {
-                windowPosition.left = taskbar.Position.Right + margin;
-                windowPosition.right = Math.Min(
-                    windowPosition.left + (int)windowSize.Width,
-                    screen.WorkingArea.Right - margin
-                );
-                windowPosition.top = margin;
-                windowPosition.bottom = Math.Min(
-                    windowPosition.top + (int)windowSize.Height,
-                    screen.WorkingArea.Bottom - margin
-                );
-            }
-            else if (taskbar.Edge == Edge.Right)
-            {
-                windowPosition.right = taskbar.Position.Left - margin;
-                windowPosition.left = Math.Max(
-                    windowPosition.right - (int)windowSize.Width,
-                    screen.WorkingArea.Left + margin
-                );
-                windowPosition.top = margin;
-                windowPosition.bottom = Math.Min(
-                    windowPosition.top + (int)windowSize.Height,
-                    screen.WorkingArea.Bottom - margin
-                );
-            }
-
             _taskbarState.TaskbarEdge = taskbar.Edge;
 
-            return windowPosition;
+            var windowSize = GetTargetWindowSize();
+            var margin = GetMargin();
+            var workingArea = screen.WorkingArea;
+
+            var centeredWidth = Math.Min((int)windowSize.Width, Math.Max(0, workingArea.Width - 2 * margin));
+            var centeredHeight = Math.Min((int)windowSize.Height, Math.Max(0, workingArea.Height - 2 * margin));
+
+            var left = workingArea.Left + Math.Max(margin, (workingArea.Width - centeredWidth) / 2);
+            var top = workingArea.Top + Math.Max(margin, (workingArea.Height - centeredHeight) / 2);
+
+            return new RECT
+            {
+                left = left,
+                top = top,
+                right = Math.Min(left + centeredWidth, workingArea.Right - margin),
+                bottom = Math.Min(top + centeredHeight, workingArea.Bottom - margin),
+            };
         }
+
+
 
         private Size GetTargetWindowSizeDip()
         {
@@ -242,42 +144,6 @@ namespace EverythingToolbar.Behaviors
             return new Size(windowSize.Width / _dpiScalingFactor, windowSize.Height / _dpiScalingFactor);
         }
 
-        private RECT SetHorizontalPosition(
-            RECT windowPosition,
-            Rectangle screenWorkingArea,
-            Size windowSize,
-            int margin
-        )
-        {
-            if (_windowsPolicy.IsTaskbarCenterAligned())
-            {
-                windowPosition.left = screenWorkingArea.Left + (int)((screenWorkingArea.Width - windowSize.Width) / 2);
-                windowPosition.left = Math.Max(screenWorkingArea.Left + margin, windowPosition.left);
-                windowPosition.right = screenWorkingArea.Left + (int)((screenWorkingArea.Width + windowSize.Width) / 2);
-                windowPosition.right = Math.Min(screenWorkingArea.Right - margin, windowPosition.right);
-            }
-            else
-            {
-                if (AssociatedObject.FlowDirection == FlowDirection.RightToLeft)
-                {
-                    windowPosition.right = screenWorkingArea.Right - margin;
-                    windowPosition.left = Math.Max(
-                        windowPosition.right - (int)windowSize.Width,
-                        screenWorkingArea.Left + margin
-                    );
-                }
-                else
-                {
-                    windowPosition.left = screenWorkingArea.Left + margin;
-                    windowPosition.right = Math.Min(
-                        windowPosition.left + (int)windowSize.Width,
-                        screenWorkingArea.Right - margin
-                    );
-                }
-            }
-
-            return windowPosition;
-        }
 
         private TaskbarLocation FindDockedTaskBar(Screen screen)
         {

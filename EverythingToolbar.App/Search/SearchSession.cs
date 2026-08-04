@@ -152,8 +152,9 @@ namespace EverythingToolbar.App.Search
 
         private void Rebuild()
         {
+            // Auto-start on first query so search-as-you-type works even if ResultsView Loaded is delayed.
             if (!_started)
-                return;
+                _started = true;
 
             if (_settings.IsHideEmptySearchResults && string.IsNullOrEmpty(_searchState.SearchTerm))
             {

@@ -170,7 +170,8 @@ namespace EverythingToolbar.App
         [Option(DefaultValue = true)]
         bool IsSearchAsYouType { get; set; }
 
-        [Option(DefaultValue = false)]
+        // Local fork default: center the search window on the working area when opened.
+        [Option(DefaultValue = true)]
         bool IsForceCenterAlignment { get; set; }
 
         [Option(DefaultValue = false)]
