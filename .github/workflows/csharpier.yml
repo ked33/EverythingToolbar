@@ -1,6 +1,9 @@
 name: CSharpier check
 
-on: [push, pull_request]
+# Do not run on push; keep PR and manual triggers only.
+on:
+  pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
