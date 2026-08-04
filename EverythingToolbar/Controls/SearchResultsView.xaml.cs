@@ -185,7 +185,17 @@ namespace EverythingToolbar.Controls
         {
             _lastScrolledIndex = -1;
             GetListScrollViewer()?.ScrollToTop();
-            Dispatcher.BeginInvoke(_viewModel.Session.AutoSelect);
+            // After each results rebuild (including the query that runs when the window opens),
+            // re-apply auto-select-first so Enter can open the top hit immediately.
+            Dispatcher.BeginInvoke(
+                () =>
+                {
+                    _viewModel.Session.AutoSelect();
+                    if (_viewModel.Session.SelectedIndex >= 0 && SearchResultsListView.SelectedItem != null)
+                        SearchResultsListView.ScrollIntoView(SearchResultsListView.SelectedItem);
+                },
+                DispatcherPriority.Loaded
+            );
         }
 
         private void OnCollectionIsBusyChanged()

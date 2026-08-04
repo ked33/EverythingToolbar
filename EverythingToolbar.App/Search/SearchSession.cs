@@ -46,11 +46,26 @@ namespace EverythingToolbar.App.Search
 
         public int VisiblePageCount { get; set; } = 1;
 
-        public bool KeepSearchBoxFocused => _settings.IsAutoSelectFirstResult;
+        /// <summary>
+        /// When auto-select-first is on, keep focus in the search box while search-as-you-type is active
+        /// (local fork behavior) so typing is not interrupted by list focus.
+        /// </summary>
+        public bool KeepSearchBoxFocused =>
+            _settings.IsAutoSelectFirstResult && _settings.IsSearchAsYouType;
 
+        /// <summary>
+        /// Select the first result when the setting is enabled and the list is non-empty.
+        /// Called on window open and whenever the results collection resets.
+        /// </summary>
         public void AutoSelect()
         {
-            SelectedIndex = _settings.IsAutoSelectFirstResult && TotalCount > 0 ? 0 : -1;
+            if (!_settings.IsAutoSelectFirstResult || TotalCount <= 0)
+            {
+                SelectedIndex = -1;
+                return;
+            }
+
+            SelectedIndex = 0;
         }
 
         public void ClearSelection() => SelectedIndex = -1;

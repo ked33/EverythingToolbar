@@ -183,11 +183,18 @@ namespace EverythingToolbar.Services
 
         private void ShowInternal(bool atCursor)
         {
-            // Clear leftover selection from the previous open (local behavior).
-            _session.ClearSelection();
             StopKeepaliveTimer();
             Window.Show(new ShowOptions(IsIconMode, atCursor));
             _state = WindowState.Visible;
+
+            // Restore auto-select-first when the window opens (and after results settle).
+            // Clear first so a stale index from a previous session cannot linger, then select
+            // index 0 when IsAutoSelectFirstResult is on and there are results.
+            _session.ClearSelection();
+            Window.Dispatcher.BeginInvoke(
+                () => _session.AutoSelect(),
+                System.Windows.Threading.DispatcherPriority.Loaded
+            );
         }
 
         private void ShowStandaloneInternal()
