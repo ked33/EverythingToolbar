@@ -247,24 +247,6 @@ namespace EverythingToolbar.Controls
 
         private void OnKeyPressed(object? sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Space)
-            {
-                _viewModel.PreviewSelected();
-                e.Handled = true;
-                return;
-            }
-            if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.C)
-            {
-                _viewModel.CopySelectedPath();
-                e.Handled = true;
-                return;
-            }
-            if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.C)
-            {
-                _viewModel.CopySelected();
-                e.Handled = true;
-                return;
-            }
             if (e.Key == Key.Escape)
             {
                 _viewModel.HideWindow();
@@ -272,6 +254,8 @@ namespace EverythingToolbar.Controls
                 return;
             }
 
+            // Space (QuickLook), Copy, Delete, Open-shortcut-target, etc. all go through SearchCommands
+            // so they honor the user-configurable shortcut settings.
             if (_viewModel.TryHandleResultsGesture(e.Key, e.SystemKey, Keyboard.Modifiers))
                 e.Handled = true;
         }

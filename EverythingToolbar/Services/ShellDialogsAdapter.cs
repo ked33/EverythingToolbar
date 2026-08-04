@@ -49,5 +49,22 @@ namespace EverythingToolbar.Services
 
             return openFileDialog.ShowDialog() == DialogResult.OK ? openFileDialog.FileName : null;
         }
+
+        public bool DeleteToRecycleBin(string path)
+        {
+            try
+            {
+                ShellUtils.DeleteToRecycleBin(path);
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                // User cancelled the recycle-bin confirmation / elevation dialog.
+                return false;
+            }
+        }
+
+        public string? ResolveShortcutTargetPath(string shortcutPath) =>
+            ShellUtils.ResolveShortcutTargetPath(shortcutPath);
     }
 }

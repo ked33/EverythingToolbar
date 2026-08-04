@@ -104,6 +104,15 @@ namespace EverythingToolbar.App
         [Option(DefaultValue = "Shift+Alt+C")]
         string CopyFullPathShortcut { get; set; }
 
+        [Option(DefaultValue = "Alt+Shift+Enter")]
+        string OpenShortcutTargetShortcut { get; set; }
+
+        [Option(DefaultValue = "Ctrl+D")]
+        string DeleteToRecycleBinShortcut { get; set; }
+
+        [Option(DefaultValue = "Space")]
+        string PreviewQuickLookShortcut { get; set; }
+
         [Option(DefaultValue = false)]
         bool IsDebugLoggingEnabled { get; set; }
 

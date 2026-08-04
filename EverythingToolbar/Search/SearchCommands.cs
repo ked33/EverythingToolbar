@@ -113,6 +113,28 @@ namespace EverythingToolbar.Search
                 return true;
             }
 
+            // Result-list-only actions (must not steal keystrokes from the search box).
+            if (!fromSearchBox)
+            {
+                if (Matches(_settings.DeleteToRecycleBinShortcut, effectiveKey, modifiers, requireModifier: true))
+                {
+                    DeleteSelectedToRecycleBin();
+                    return true;
+                }
+
+                if (Matches(_settings.OpenShortcutTargetShortcut, effectiveKey, modifiers, requireModifier: true))
+                {
+                    OpenShortcutTargetOrProperties();
+                    return true;
+                }
+
+                if (Matches(_settings.PreviewQuickLookShortcut, effectiveKey, modifiers, requireModifier: false))
+                {
+                    PreviewSelected();
+                    return true;
+                }
+            }
+
             if (Matches(_settings.ToggleMatchCaseShortcut, effectiveKey, modifiers))
             {
                 _searchState.IsMatchCase = !_searchState.IsMatchCase;
@@ -239,6 +261,12 @@ namespace EverythingToolbar.Search
 
         public void PreviewSelected(SearchResult? target = null) =>
             Act(target, _actions.Preview, hide: false, clearSelection: false);
+
+        public void DeleteSelectedToRecycleBin(SearchResult? target = null) =>
+            Act(target, _actions.DeleteToRecycleBin, hide: false, clearSelection: false);
+
+        public void OpenShortcutTargetOrProperties(SearchResult? target = null) =>
+            Act(target, _actions.OpenShortcutTargetOrProperties, hide: true, clearSelection: true);
 
         private void RunOrOpen(SearchResult item)
         {

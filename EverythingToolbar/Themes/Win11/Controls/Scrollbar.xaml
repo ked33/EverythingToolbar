@@ -1,31 +1,35 @@
-﻿<ResourceDictionary
+<ResourceDictionary
   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:Sys="clr-namespace:System;assembly=mscorlib">
-  <Sys:Double x:Key="ScrollbarWidth">12</Sys:Double>
-  <Sys:Double x:Key="ScrollbarThumbWidth">9</Sys:Double>
-  <Sys:Double x:Key="ScrollbarThumbWidthHover">11</Sys:Double>
-  <Sys:Double x:Key="ScrollbarThumbHeight">28</Sys:Double>
-  <Thickness
-    x:Key="ScrollbarThumbPadding"
-    Left="3"
-    Right="3" />
+
+  <!-- Geometry aligned with WPF-UI settings panel scrollbar (width/shape only; colors stay themed). -->
+  <Sys:Double x:Key="ScrollbarWidth">14</Sys:Double>
+  <Sys:Double x:Key="ScrollbarThumbWidth">6</Sys:Double>
+  <Sys:Double x:Key="ScrollbarThumbWidthHover">6</Sys:Double>
+  <Sys:Double x:Key="ScrollbarThumbHeight">12</Sys:Double>
+  <Thickness x:Key="ScrollbarThumbPadding" />
   <CornerRadius
     x:Key="ScrollbarThumbCornerRadius"
-    BottomLeft="2"
-    BottomRight="2"
-    TopLeft="2"
-    TopRight="2" />
+    BottomLeft="4"
+    BottomRight="4"
+    TopLeft="4"
+    TopRight="4" />
   <CornerRadius
     x:Key="ScrollbarThumbCornerRadiusHover"
-    BottomLeft="3"
-    BottomRight="3"
-    TopLeft="3"
-    TopRight="3" />
-  <CornerRadius x:Key="ScrollbarCornerRadius" />
-  <Sys:String x:Key="ScrollbarArrowUpCornerRadius">0,0,0,0</Sys:String>
+    BottomLeft="4"
+    BottomRight="4"
+    TopLeft="4"
+    TopRight="4" />
+  <CornerRadius
+    x:Key="ScrollbarCornerRadius"
+    BottomLeft="6"
+    BottomRight="6"
+    TopLeft="6"
+    TopRight="6" />
+  <Sys:String x:Key="ScrollbarArrowUpCornerRadius">6,6,6,6</Sys:String>
   <Sys:String x:Key="ScrollbarArrowUpContent">M 0 7 L 4 0 L 8 7 Z</Sys:String>
-  <Sys:String x:Key="ScrollbarArrowDownCornerRadius">0,0,0,0</Sys:String>
+  <Sys:String x:Key="ScrollbarArrowDownCornerRadius">6,6,6,6</Sys:String>
   <Sys:String x:Key="ScrollbarArrowDownContent">M 0 1 L 4 8 L 8 1 Z</Sys:String>
 
   <ResourceDictionary.MergedDictionaries>

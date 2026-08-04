@@ -1,15 +1,15 @@
-﻿<ResourceDictionary
+<ResourceDictionary
   xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:b="clr-namespace:EverythingToolbar.Behaviors"
   xmlns:h="clr-namespace:EverythingToolbar.Helpers">
+  <!-- Compact detailed: icon | name | path | size (no modified date — local product choice). -->
   <DataTemplate x:Key="CompactDetailed">
     <Grid x:Name="ListViewItem" Margin="3">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="20" />
         <ColumnDefinition Width="1.5*" />
         <ColumnDefinition Width="2*" />
-        <ColumnDefinition Width="62" />
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
       <Image
@@ -39,12 +39,6 @@
         Foreground="{DynamicResource SearchResultFileSize}"
         Text="{Binding HumanReadableFileSize, Mode=OneTime}"
         TextAlignment="Right" />
-      <TextBlock
-        Grid.Column="4"
-        Margin="2 0"
-        FontSize="9pt"
-        Foreground="{DynamicResource SearchResultDateModified}"
-        Text="{Binding HumanReadableDateModified, Mode=OneTime}" />
     </Grid>
   </DataTemplate>
 </ResourceDictionary>

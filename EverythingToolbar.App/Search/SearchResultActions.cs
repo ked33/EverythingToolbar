@@ -125,5 +125,57 @@ namespace EverythingToolbar.App.Search
             previewer.PreviewInQuickLook(r.FullPathAndFileName);
             previewer.PreviewInSeer(r.FullPathAndFileName);
         }
+
+        public void DeleteToRecycleBin(SearchResult r)
+        {
+            try
+            {
+                if (!shellDialogs.DeleteToRecycleBin(r.FullPathAndFileName))
+                    return;
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e, "Failed to delete search result.");
+                notifier.ShowError("MessageBoxFailedToOpen", e.Message);
+            }
+        }
+
+        /// <summary>
+        /// For .lnk files, open the target's parent folder and select the target.
+        /// Returns false when the item is not a resolvable shortcut (caller may fall back to properties).
+        /// </summary>
+        public bool TryOpenShortcutTargetFolder(SearchResult r)
+        {
+            if (
+                !r.IsFile
+                || !string.Equals(System.IO.Path.GetExtension(r.FullPathAndFileName), ".lnk", StringComparison.OrdinalIgnoreCase)
+            )
+                return false;
+
+            try
+            {
+                var target = shellDialogs.ResolveShortcutTargetPath(r.FullPathAndFileName);
+                if (string.IsNullOrWhiteSpace(target))
+                    return false;
+
+                if (!System.IO.File.Exists(target) && !System.IO.Directory.Exists(target))
+                    return false;
+
+                shellDialogs.OpenParentFolderAndSelect(target);
+                everything.IncrementRunCount(r.FullPathAndFileName);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Logger.Error(e, "Failed to open shortcut target.");
+                return false;
+            }
+        }
+
+        public void OpenShortcutTargetOrProperties(SearchResult r)
+        {
+            if (!TryOpenShortcutTargetFolder(r))
+                ShowProperties(r);
+        }
     }
 }
