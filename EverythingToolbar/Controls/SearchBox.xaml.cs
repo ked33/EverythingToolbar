@@ -1,8 +1,9 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.DependencyInjection;
 using EverythingToolbar.ViewModels;
 
@@ -29,17 +30,27 @@ namespace EverythingToolbar.Controls
 
         private static void OnSearchTermPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            if (d is SearchBox searchBox && e.NewValue is string newValue)
-            {
-                if (searchBox.TextBox.Text == newValue)
-                    return;
+            if (d is not SearchBox searchBox || e.NewValue is not string newValue)
+                return;
 
+            // Keep the visible text in sync when SearchState pushes a new term (history, reset, etc.).
+            if (searchBox.TextBox.Text == newValue)
+                return;
+
+            searchBox._isInternalTextChange = true;
+            try
+            {
                 searchBox.TextBox.Text = newValue;
                 searchBox.TextBox.CaretIndex = searchBox.TextBox.Text.Length;
+            }
+            finally
+            {
+                searchBox._isInternalTextChange = false;
             }
         }
 
         private bool _isInternalTextChange;
+        private bool _syncPosted;
         private readonly SearchBoxViewModel _viewModel = Ioc.Default.GetRequiredService<SearchBoxViewModel>();
 
         public SearchBox()
@@ -50,22 +61,59 @@ namespace EverythingToolbar.Controls
             InputMethod.SetPreferredImeState(this, InputMethodState.DoNotCare);
 
             _viewModel.Settings.PropertyChanged += OnSettingsChanged;
+
+            // IME composition can update the text without a reliable intermediate TextChanged in some hosts;
+            // also re-sync after the input pipeline settles.
+            TextBox.AddHandler(TextCompositionManager.TextInputStartEvent, new TextCompositionEventHandler(OnTextComposition), true);
+            TextBox.AddHandler(TextCompositionManager.TextInputUpdateEvent, new TextCompositionEventHandler(OnTextComposition), true);
+            TextBox.AddHandler(TextCompositionManager.TextInputEvent, new TextCompositionEventHandler(OnTextComposition), true);
         }
+
+        private void OnTextComposition(object sender, TextCompositionEventArgs e) => QueueSyncFromTextBox();
 
         private void OnTextChanged(object sender, TextChangedEventArgs e)
         {
             if (_isInternalTextChange)
                 return;
 
-            if (_viewModel.Settings.IsSearchAsYouType)
-            {
-                // Push into the DP (parent TwoWay binding) and also assign SearchState directly so
-                // query rebuild cannot be skipped if the binding update is deferred.
-                var text = TextBox.Text;
-                SearchTerm = text;
-                if (_viewModel.SearchState.SearchTerm != text)
-                    _viewModel.SearchState.SearchTerm = text;
-            }
+            QueueSyncFromTextBox();
+        }
+
+        /// <summary>
+        /// Coalesce rapid key/IME events onto the dispatcher so SearchState always sees the final TextBox.Text.
+        /// </summary>
+        private void QueueSyncFromTextBox()
+        {
+            if (!_viewModel.Settings.IsSearchAsYouType)
+                return;
+
+            if (_syncPosted)
+                return;
+
+            _syncPosted = true;
+            Dispatcher.BeginInvoke(
+                () =>
+                {
+                    _syncPosted = false;
+                    PushTextToSearchState();
+                },
+                DispatcherPriority.Input
+            );
+        }
+
+        private void PushTextToSearchState()
+        {
+            if (!_viewModel.Settings.IsSearchAsYouType)
+                return;
+
+            var text = TextBox.Text ?? string.Empty;
+
+            // Keep the DP in sync for any TwoWay binding to SearchState on the parent.
+            if (!string.Equals(SearchTerm, text, System.StringComparison.Ordinal))
+                SetCurrentValue(SearchTermProperty, text);
+
+            // Always go through SearchState so SearchSession rebuilds (force notify).
+            _viewModel.SearchState.SetSearchTermFromUi(text);
         }
 
         private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
@@ -86,13 +134,12 @@ namespace EverythingToolbar.Controls
                 Keyboard.Modifiers == ModifierKeys.None
                 && e.Key is Key.Enter or Key.Return
                 && !_viewModel.Settings.IsSearchAsYouType
-                && SearchTerm != TextBox.Text
             )
             {
-                var text = TextBox.Text;
-                SearchTerm = text;
-                if (_viewModel.SearchState.SearchTerm != text)
-                    _viewModel.SearchState.SearchTerm = text;
+                // Commit the box text as the query when search-as-you-type is off.
+                var text = TextBox.Text ?? string.Empty;
+                SetCurrentValue(SearchTermProperty, text);
+                _viewModel.SearchState.SetSearchTermFromUi(text);
                 e.Handled = true;
                 return;
             }
@@ -111,16 +158,27 @@ namespace EverythingToolbar.Controls
         private void UpdateSearchTerm(string newSearchTerm)
         {
             _isInternalTextChange = true;
-            TextBox.Text = newSearchTerm;
-            TextBox.CaretIndex = TextBox.Text.Length;
-            SearchTerm = newSearchTerm;
-            _isInternalTextChange = false;
+            try
+            {
+                TextBox.Text = newSearchTerm;
+                TextBox.CaretIndex = TextBox.Text.Length;
+                SetCurrentValue(SearchTermProperty, newSearchTerm);
+                _viewModel.SearchState.SetSearchTermFromUi(newSearchTerm);
+            }
+            finally
+            {
+                _isInternalTextChange = false;
+            }
         }
 
         private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(ISettings.IsShowQuickToggles))
                 UpdateQuickTogglesVisibility();
+
+            // Turning search-as-you-type on should immediately apply the current box text.
+            if (e.PropertyName == nameof(ISettings.IsSearchAsYouType) && _viewModel.Settings.IsSearchAsYouType)
+                PushTextToSearchState();
         }
 
         private void OnSizeChanged(object? sender, SizeChangedEventArgs e)
@@ -161,6 +219,10 @@ namespace EverythingToolbar.Controls
 
         private void OnLostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
         {
+            // Commit whatever is in the box when leaving, if search-as-you-type is on.
+            if (_viewModel.Settings.IsSearchAsYouType)
+                PushTextToSearchState();
+
             if (e.NewFocus == null) // New focus outside application
             {
                 _viewModel.NotifyFocusLostToOutside();

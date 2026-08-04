@@ -198,7 +198,24 @@ namespace EverythingToolbar.App.Search
                 OnPropertyChanged(nameof(IsBusy));
         }
 
-        private void OnSearchStateChanged(object? sender, PropertyChangedEventArgs e) => Rebuild();
+        private void OnSearchStateChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            // Rebuild on any search-state change. PropertyName may be null for reset-style notifications.
+            if (
+                e.PropertyName is null
+                or nameof(SearchState.SearchTerm)
+                or nameof(SearchState.Filter)
+                or nameof(SearchState.IsMatchCase)
+                or nameof(SearchState.IsMatchPath)
+                or nameof(SearchState.IsMatchWholeWord)
+                or nameof(SearchState.IsRegExEnabled)
+                or nameof(SearchState.SortBy)
+                or nameof(SearchState.IsSortDescending)
+            )
+            {
+                Rebuild();
+            }
+        }
 
         private void ReleaseCollection()
         {

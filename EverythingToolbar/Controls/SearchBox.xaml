@@ -15,7 +15,6 @@
       PreviewKeyDown="OnPreviewKeyDown"
       PreviewMouseLeftButtonDown="SelectivelyIgnoreMouseButton"
       Tag="{x:Static properties:Resources.TextBoxWatermark}"
-      Text="{Binding SearchTerm, RelativeSource={RelativeSource AncestorType={x:Type controls:SearchBox}}, Mode=OneWay}"
       TextChanged="OnTextChanged">
       <TextBox.ContextMenu>
         <ContextMenu>

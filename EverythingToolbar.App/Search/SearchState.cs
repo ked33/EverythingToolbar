@@ -8,8 +8,31 @@ namespace EverythingToolbar.App.Search
 {
     public sealed partial class SearchState : ObservableObject
     {
-        [ObservableProperty]
         private string _searchTerm = "";
+
+        /// <summary>
+        /// Current query text. Use SetSearchTermFromUi for search-box input (always notifies).
+        /// </summary>
+        public string SearchTerm
+        {
+            get => _searchTerm;
+            set => SetSearchTerm(value, forceNotify: false);
+        }
+
+        /// <summary>
+        /// Updates the query from the search box. Always notifies so typing reliably triggers search.
+        /// </summary>
+        public void SetSearchTermFromUi(string? value) => SetSearchTerm(value, forceNotify: true);
+
+        private void SetSearchTerm(string? value, bool forceNotify)
+        {
+            value ??= "";
+            if (_searchTerm == value && !forceNotify)
+                return;
+
+            _searchTerm = value;
+            OnPropertyChanged(nameof(SearchTerm));
+        }
 
         // Session-scoped quick toggles: reset on each search session, do not write settings.ini.
         private bool _isMatchCase;

@@ -190,17 +190,14 @@ begin
   IsUpgrade := False;
   SkipInstallTypePage := False;
 
-  // If exactly the same version is installed, cancel
+  // Allow reinstalling the same version and upgrading/overwriting any previously installed
+  // version (including lower versions) so test and fork builds can replace an existing install.
   if IsSameVersionInstalled then
   begin
-    MsgBox('EverythingToolbar version {#MyAppVersion} is already installed on this computer.' + #13#10 + #13#10 +
-           'Installation will be cancelled.',
-           mbInformation, MB_OK);
-    Result := False;
-    Exit;
+    IsUpgrade := True;
   end;
 
-  // Detect whether an older version is installed (upgrade scenario)
+  // Detect whether another version is already installed (upgrade / overwrite scenario)
   if GetInstalledVersion(sPrevVersion) then
   begin
     IsUpgrade := True;
