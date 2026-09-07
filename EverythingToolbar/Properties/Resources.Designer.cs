@@ -1939,6 +1939,21 @@ namespace EverythingToolbar.Properties {
         public static string SettingsOpenSearchWindowOnDoubleCtrlHelp {
             get { return ResourceManager.GetString("SettingsOpenSearchWindowOnDoubleCtrlHelp", resourceCulture); }
         }
+        public static string SettingsDoubleCtrlKeySide {
+            get { return ResourceManager.GetString("SettingsDoubleCtrlKeySide", resourceCulture); }
+        }
+        public static string SettingsDoubleCtrlKeySideHelp {
+            get { return ResourceManager.GetString("SettingsDoubleCtrlKeySideHelp", resourceCulture); }
+        }
+        public static string SettingsDoubleCtrlKeySideBoth {
+            get { return ResourceManager.GetString("SettingsDoubleCtrlKeySideBoth", resourceCulture); }
+        }
+        public static string SettingsDoubleCtrlKeySideLeft {
+            get { return ResourceManager.GetString("SettingsDoubleCtrlKeySideLeft", resourceCulture); }
+        }
+        public static string SettingsDoubleCtrlKeySideRight {
+            get { return ResourceManager.GetString("SettingsDoubleCtrlKeySideRight", resourceCulture); }
+        }
         public static string SettingsDoubleCtrlProcessBlacklist {
             get { return ResourceManager.GetString("SettingsDoubleCtrlProcessBlacklist", resourceCulture); }
         }

@@ -761,7 +761,22 @@
     <value>Open search window on double Ctrl</value>
   </data>
   <data name="SettingsOpenSearchWindowOnDoubleCtrlHelp" xml:space="preserve">
-    <value>Double-tap the left or right Ctrl key to open the search window. Press Esc or double-tap Ctrl again to close it and return to the previous window.</value>
+    <value>Tap and release the same Ctrl key twice to open search on the second release. Other keys, mouse buttons or scrolling cancel the gesture. Press Esc or double-tap Ctrl again to close it and return to the previous window.</value>
+  </data>
+  <data name="SettingsDoubleCtrlKeySide" xml:space="preserve">
+    <value>Double Ctrl key</value>
+  </data>
+  <data name="SettingsDoubleCtrlKeySideHelp" xml:space="preserve">
+    <value>Choose Right Ctrl only if Left Ctrl switches your input language. With either side enabled, both taps must use the same key.</value>
+  </data>
+  <data name="SettingsDoubleCtrlKeySideBoth" xml:space="preserve">
+    <value>Either Ctrl</value>
+  </data>
+  <data name="SettingsDoubleCtrlKeySideLeft" xml:space="preserve">
+    <value>Left Ctrl only</value>
+  </data>
+  <data name="SettingsDoubleCtrlKeySideRight" xml:space="preserve">
+    <value>Right Ctrl only</value>
   </data>
   <data name="SettingsDoubleCtrlProcessBlacklist" xml:space="preserve">
     <value>Double Ctrl process blacklist</value>

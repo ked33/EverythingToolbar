@@ -62,6 +62,9 @@ namespace EverythingToolbar.App
         [Option(DefaultValue = false)]
         bool IsDoubleCtrlOpenSearchWindow { get; set; }
 
+        [Option(DefaultValue = "Both")]
+        string DoubleCtrlKeySide { get; set; }
+
         [Option(DefaultValue = "")]
         string DoubleCtrlProcessBlacklist { get; set; }
 

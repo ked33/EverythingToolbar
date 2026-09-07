@@ -101,6 +101,27 @@
         Padding="16"
         Background="{ui:ThemeResource CardBackgroundFillColorDefaultBrush}"
         BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
+        BorderThickness="1 0 1 0">
+        <controls:SettingItem
+          Title="{x:Static properties:Resources.SettingsDoubleCtrlKeySide}"
+          HelpText="{x:Static properties:Resources.SettingsDoubleCtrlKeySideHelp}">
+          <controls:SettingItem.SettingContent>
+            <ComboBox
+              MinWidth="150"
+              HorizontalAlignment="Right"
+              SelectedValue="{Binding Settings.DoubleCtrlKeySide, Mode=TwoWay}"
+              SelectedValuePath="Tag">
+              <ComboBoxItem Content="{x:Static properties:Resources.SettingsDoubleCtrlKeySideBoth}" Tag="Both" />
+              <ComboBoxItem Content="{x:Static properties:Resources.SettingsDoubleCtrlKeySideLeft}" Tag="Left" />
+              <ComboBoxItem Content="{x:Static properties:Resources.SettingsDoubleCtrlKeySideRight}" Tag="Right" />
+            </ComboBox>
+          </controls:SettingItem.SettingContent>
+        </controls:SettingItem>
+      </Border>
+      <Border
+        Padding="16"
+        Background="{ui:ThemeResource CardBackgroundFillColorDefaultBrush}"
+        BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
         BorderThickness="1 0 1 1"
         CornerRadius="0,0,8,8">
         <controls:SettingItem

@@ -769,7 +769,22 @@
     <value>双击 Ctrl 打开搜索窗口</value>
   </data>
   <data name="SettingsOpenSearchWindowOnDoubleCtrlHelp" xml:space="preserve">
-    <value>连续按两次左 Ctrl 或右 Ctrl 可打开搜索窗口；按 Esc 或再次双击 Ctrl 可关闭并返回之前的窗口。</value>
+    <value>快速轻按并松开同一侧 Ctrl 两次，第二次松开后打开搜索窗口；期间按其他键、点击鼠标或滚动将取消。按 Esc 或再次双击 Ctrl 可关闭并返回之前的窗口。</value>
+  </data>
+  <data name="SettingsDoubleCtrlKeySide" xml:space="preserve">
+    <value>用于双击的 Ctrl 键</value>
+  </data>
+  <data name="SettingsDoubleCtrlKeySideHelp" xml:space="preserve">
+    <value>左 Ctrl 用于切换输入法时，建议选择“仅右 Ctrl”。选择“左、右均可”时，两次轻按仍须使用同一侧 Ctrl。</value>
+  </data>
+  <data name="SettingsDoubleCtrlKeySideBoth" xml:space="preserve">
+    <value>左、右均可</value>
+  </data>
+  <data name="SettingsDoubleCtrlKeySideLeft" xml:space="preserve">
+    <value>仅左 Ctrl</value>
+  </data>
+  <data name="SettingsDoubleCtrlKeySideRight" xml:space="preserve">
+    <value>仅右 Ctrl</value>
   </data>
   <data name="SettingsDoubleCtrlProcessBlacklist" xml:space="preserve">
     <value>双击 Ctrl 进程黑名单</value>

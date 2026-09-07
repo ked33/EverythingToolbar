@@ -15,11 +15,15 @@ namespace EverythingToolbar.Services
         private static readonly ILogger Logger = ToolbarLogger.GetLogger<LowLevelKeyboardHook>();
 
         private NativeMethods.LowLevelKeyboardProc? _callback;
+        private NativeMethods.LowLevelKeyboardProc? _mouseCallback;
         private IntPtr _hookId = IntPtr.Zero;
+        private IntPtr _mouseHookId = IntPtr.Zero;
         private Thread? _hookThread;
         private uint _hookThreadId;
+        private readonly Func<int, bool, bool, uint, bool> _onKeyEvent;
         private readonly string _owner;
         private readonly Action? _onStateCheck;
+        private readonly Action? _onMouseInput;
         private nuint _stateCheckTimerId;
         private long _debugCallbackCount;
         private long _debugPhysicalCtrlCount;
@@ -28,19 +32,31 @@ namespace EverythingToolbar.Services
         private long _debugLastCtrlTick;
 
         private const int WhKeyboardLl = 13;
+        private const int WhMouseLl = 14;
         private const int WmKeydown = 0x0100;
         private const int WmSyskeydown = 0x0104;
         private const int LlkhfInjected = 0x10;
         private const int LlkhfLowerIlInjected = 0x02;
 
         public LowLevelKeyboardHook(Func<int, bool, bool, bool> onKeyEvent, Action? onStateCheck = null)
+            : this((vk, isDown, isInjected, _) => onKeyEvent(vk, isDown, isInjected), onStateCheck)
         {
-            OnKeyEvent = onKeyEvent ?? throw new ArgumentNullException(nameof(onKeyEvent));
+            ArgumentNullException.ThrowIfNull(onKeyEvent);
             _owner = onKeyEvent.Method.DeclaringType?.Name ?? "unknown";
-            _onStateCheck = onStateCheck;
         }
 
-        public Func<int, bool, bool, bool> OnKeyEvent { get; }
+        internal LowLevelKeyboardHook(
+            Func<int, bool, bool, uint, bool> onKeyEvent,
+            Action? onStateCheck = null,
+            Action? onMouseInput = null
+        )
+        {
+            _onKeyEvent = onKeyEvent ?? throw new ArgumentNullException(nameof(onKeyEvent));
+            _owner = onKeyEvent.Method.DeclaringType?.Name ?? "unknown";
+            _onStateCheck = onStateCheck;
+            _onMouseInput = onMouseInput;
+        }
+
         internal bool IsInstalled => _hookId != IntPtr.Zero && _hookThread?.IsAlive == true;
 
         public void Install()
@@ -172,6 +188,26 @@ namespace EverythingToolbar.Services
                 installError
             );
 
+            if (_hookId != IntPtr.Zero && _onMouseInput != null)
+            {
+                // Share the keyboard thread so clicks and wheels cancel the detector in
+                // order, including complete clicks between two keyboard callbacks.
+                _mouseCallback = MouseHookCallback;
+                _mouseHookId = NativeMethods.SetWindowsHookEx(WhMouseLl, _mouseCallback, IntPtr.Zero, 0);
+                if (_mouseHookId == IntPtr.Zero)
+                {
+                    var error = Marshal.GetLastWin32Error();
+                    Logger.Error("Mouse cancellation hook failed: owner={0}, win32Error={1}.", _owner, error);
+                    NativeMethods.UnhookWindowsHookEx(_hookId);
+                    _hookId = IntPtr.Zero;
+                    _mouseCallback = null;
+                }
+                else
+                {
+                    Logger.Debug("Mouse cancellation hook installed: owner={0}, handle={1}.", _owner, _mouseHookId);
+                }
+            }
+
             ready.Set();
 
             if (_hookId == IntPtr.Zero)
@@ -214,6 +250,19 @@ namespace EverythingToolbar.Services
             }
 
             CancelStateCheck();
+            if (_mouseHookId != IntPtr.Zero)
+            {
+                var mouseUnhooked = NativeMethods.UnhookWindowsHookEx(_mouseHookId);
+                var mouseError = mouseUnhooked ? 0 : Marshal.GetLastWin32Error();
+                Logger.Debug(
+                    "Mouse cancellation hook removed: owner={0}, success={1}, win32Error={2}.",
+                    _owner,
+                    mouseUnhooked,
+                    mouseError
+                );
+                _mouseHookId = IntPtr.Zero;
+                _mouseCallback = null;
+            }
             var unhooked = NativeMethods.UnhookWindowsHookEx(_hookId);
             var unhookError = unhooked ? 0 : Marshal.GetLastWin32Error();
             Logger.Debug(
@@ -264,7 +313,7 @@ namespace EverythingToolbar.Services
             var lastCallback = Interlocked.Read(ref _debugLastCallbackTick);
             var lastCtrl = Interlocked.Read(ref _debugLastCtrlTick);
             Logger.Debug(
-                "Keyboard hook health: owner={0}, trackedHandle={1}, threadAlive={2}, nativeThread={3}, debugCallbacks={4}, physicalCtrlEvents={5}, injectedCtrlEvents={6}, lastCallbackAgeMs={7}, lastCtrlAgeMs={8}. A tracked handle does not prove Windows still delivers events; -1 means no event observed while debugging.",
+                "Keyboard hook health: owner={0}, trackedHandle={1}, threadAlive={2}, nativeThread={3}, debugCallbacks={4}, physicalCtrlEvents={5}, injectedCtrlEvents={6}, lastCallbackAgeMs={7}, lastCtrlAgeMs={8}, mouseCancellationHandle={9}. A tracked handle does not prove Windows still delivers events; -1 means no event observed while debugging.",
                 _owner,
                 _hookId,
                 _hookThread?.IsAlive == true,
@@ -273,7 +322,8 @@ namespace EverythingToolbar.Services
                 Interlocked.Read(ref _debugPhysicalCtrlCount),
                 Interlocked.Read(ref _debugInjectedCtrlCount),
                 lastCallback == 0 ? -1 : now - lastCallback,
-                lastCtrl == 0 ? -1 : now - lastCtrl
+                lastCtrl == 0 ? -1 : now - lastCtrl,
+                _mouseHookId
             );
         }
 
@@ -290,7 +340,7 @@ namespace EverythingToolbar.Services
             var isCtrl = vk is 0x11 or 0xA2 or 0xA3;
             var debugEnabled = Logger.IsDebugEnabled;
             var started = debugEnabled ? Stopwatch.GetTimestamp() : 0;
-            uint eventTime = 0;
+            var eventTime = unchecked((uint)Marshal.ReadInt32(lParam, 12));
 
             if (debugEnabled)
             {
@@ -304,7 +354,6 @@ namespace EverythingToolbar.Services
                         Interlocked.Increment(ref _debugPhysicalCtrlCount);
                     Interlocked.Exchange(ref _debugLastCtrlTick, Environment.TickCount64);
 
-                    eventTime = unchecked((uint)Marshal.ReadInt32(lParam, 12));
                     var deliveryDelay = unchecked((uint)Environment.TickCount - eventTime);
                     Logger.Debug(
                         "Keyboard hook Ctrl received: owner={0}, vk=0x{1:X2}, down={2}, scanCode=0x{3:X}, flags=0x{4:X}, injected={5}, lowerIntegrityInjected={6}, nativeTime={7}, deliveryDelayMs={8}.",
@@ -321,7 +370,9 @@ namespace EverythingToolbar.Services
                 }
             }
 
-            var swallow = OnKeyEvent(vk, isDown, isInjected);
+            // Some sources report generic VK_CONTROL. Preserve its side using LLKHF_EXTENDED.
+            var normalizedVk = vk == 0x11 ? ((flags & 0x01) != 0 ? 0xA3 : 0xA2) : vk;
+            var swallow = _onKeyEvent(normalizedVk, isDown, isInjected, eventTime);
             var handlerMs = debugEnabled ? Stopwatch.GetElapsedTime(started).TotalMilliseconds : 0;
             var result = swallow ? (IntPtr)1 : NativeMethods.CallNextHookEx(_hookId, nCode, wParam, lParam);
 
@@ -347,6 +398,24 @@ namespace EverythingToolbar.Services
             }
 
             return result;
+        }
+
+        private IntPtr MouseHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
+        {
+            // Button down/up/double-click, vertical wheel and horizontal wheel. Movement
+            // alone is deliberately ignored; never swallow any mouse input.
+            if (nCode >= 0 && (int)wParam is >= 0x0201 and <= 0x020E)
+            {
+                try
+                {
+                    _onMouseInput?.Invoke();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "Mouse cancellation callback failed: owner={0}.", _owner);
+                }
+            }
+            return NativeMethods.CallNextHookEx(_mouseHookId, nCode, wParam, lParam);
         }
     }
 }
