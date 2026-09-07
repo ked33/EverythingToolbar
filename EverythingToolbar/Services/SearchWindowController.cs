@@ -1,4 +1,6 @@
 using System;
+using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.DependencyInjection;
@@ -27,6 +29,9 @@ namespace EverythingToolbar.Services
         private bool _temporaryPopupMode;
         private DateTime _lastHideStart = DateTime.MinValue;
         private DispatcherTimer? _keepaliveTimer;
+        private IntPtr _previousForegroundWindow;
+        private uint _previousForegroundProcessId;
+        private uint _previousForegroundThreadId;
 
         private Func<bool>? _toolbarBoxIsFocused;
         private Action? _toolbarBoxFocus;
@@ -79,12 +84,7 @@ namespace EverythingToolbar.Services
 
         public void Toggle() => RunOnUi(ToggleInternal);
 
-        public void Dismiss() =>
-            RunOnUi(() =>
-            {
-                NativeMethods.FocusTaskbarWindow();
-                HideInternal();
-            });
+        public void Dismiss() => RunOnUi(DismissInternal);
 
         public void ToggleSearchUi() =>
             RunOnUi(() =>
@@ -95,13 +95,14 @@ namespace EverythingToolbar.Services
                     Logger.Debug("Search UI toggle routed to popup window.");
                     ToggleInternal();
                 }
-                else if (_toolbarBoxIsFocused?.Invoke() == true)
+                else if (_state != WindowState.Hidden || _toolbarBoxIsFocused?.Invoke() == true)
                 {
-                    Logger.Debug("Search UI toggle routed to hide: toolbar search box already focused.");
-                    HideInternal();
+                    Logger.Debug("Search UI toggle routed to dismiss: search is already open or focused.");
+                    DismissInternal();
                 }
                 else
                 {
+                    RememberForegroundWindow();
                     Logger.Debug(
                         "Search UI toggle routed to toolbar focus: focusHandlerAttached={0}.",
                         _toolbarBoxFocus != null
@@ -116,7 +117,7 @@ namespace EverythingToolbar.Services
             {
                 if (_state == WindowState.Visible)
                 {
-                    HideInternal();
+                    DismissInternal();
                     return;
                 }
 
@@ -156,9 +157,9 @@ namespace EverythingToolbar.Services
                 Window.Dispatcher.BeginInvoke(
                     new Action(() =>
                     {
-                        if (_toolbarBoxIsFocused?.Invoke() == true)
+                        if (IsSearchUiFocused)
                         {
-                            Logger.Debug("Search UI focus-loss hide skipped: focus moved to toolbar search box.");
+                            Logger.Debug("Search UI focus-loss hide skipped: focus remains in the search UI.");
                             return;
                         }
 
@@ -206,6 +207,7 @@ namespace EverythingToolbar.Services
         private void ShowInternal(bool atCursor)
         {
             LogState("ShowInternal requested");
+            RememberForegroundWindow();
             StopKeepaliveTimer();
             Window.Show(new ShowOptions(IsIconMode, atCursor));
             _state = WindowState.Visible;
@@ -244,13 +246,99 @@ namespace EverythingToolbar.Services
             Hiding?.Invoke(this, EventArgs.Empty);
         }
 
+        private bool IsSearchUiFocused =>
+            _window?.IsActive == true
+            || _window?.IsKeyboardFocusWithin == true
+            || _toolbarBoxIsFocused?.Invoke() == true;
+
+        private void DismissInternal()
+        {
+            var restoreFocus = IsSearchUiFocused;
+            var previousWindow = _previousForegroundWindow;
+            var previousProcessId = _previousForegroundProcessId;
+            var previousThreadId = _previousForegroundThreadId;
+            ForgetForegroundWindow();
+
+            HideInternal();
+            if (!restoreFocus)
+                return;
+
+            Keyboard.ClearFocus();
+            // Restore while handling the dismissal, before the asynchronous hide completes.
+            // A delayed restore could steal focus after the user switches to another window.
+            RestoreForegroundWindow(previousWindow, previousProcessId, previousThreadId);
+        }
+
+        private void RememberForegroundWindow()
+        {
+            if (_state == WindowState.Visible || IsSearchUiFocused)
+                return;
+
+            var foreground = NativeMethods.GetForegroundWindow();
+            if (
+                foreground == IntPtr.Zero
+                || foreground == new WindowInteropHelper(Window).Handle
+                || foreground == NativeMethods.FindTaskbarHandle()
+            )
+                return;
+
+            var threadId = NativeMethods.GetWindowThreadProcessId(foreground, out var processId);
+            if (threadId == 0 || processId == 0)
+                return;
+
+            _previousForegroundWindow = foreground;
+            _previousForegroundProcessId = processId;
+            _previousForegroundThreadId = threadId;
+            Logger.Debug(
+                "Search UI remembered foreground window: hwnd={0}, pid={1}, thread={2}.",
+                foreground,
+                processId,
+                threadId
+            );
+        }
+
+        private void ForgetForegroundWindow()
+        {
+            _previousForegroundWindow = IntPtr.Zero;
+            _previousForegroundProcessId = 0;
+            _previousForegroundThreadId = 0;
+        }
+
+        private static void RestoreForegroundWindow(IntPtr window, uint processId, uint threadId)
+        {
+            if (window == IntPtr.Zero)
+            {
+                Logger.Debug("Search UI foreground restore skipped: no previous window was captured.");
+                return;
+            }
+
+            var currentThreadId = NativeMethods.GetWindowThreadProcessId(window, out var currentProcessId);
+            if (currentThreadId == 0 || currentThreadId != threadId || currentProcessId != processId)
+            {
+                Logger.Debug(
+                    "Search UI foreground restore skipped: previous window no longer matches, hwnd={0}.",
+                    window
+                );
+                return;
+            }
+
+            NativeMethods.ForciblySetForegroundWindow(window);
+            var foreground = NativeMethods.GetForegroundWindow();
+            Logger.Debug(
+                "Search UI foreground restore completed: target={0}, foreground={1}, restored={2}.",
+                window,
+                foreground,
+                foreground == window
+            );
+        }
+
         private void ToggleInternal()
         {
             LogState("ToggleInternal deciding show or hide");
             if (_state == WindowState.Hidden)
                 ShowInternal(atCursor: false);
             else
-                HideInternal();
+                DismissInternal();
         }
 
         private void SetTemporaryPopupMode(bool value)
@@ -286,6 +374,7 @@ namespace EverythingToolbar.Services
         private void OnWindowHidden(object? sender, EventArgs e)
         {
             _state = WindowState.Hidden;
+            ForgetForegroundWindow();
             LogState("window Hidden event");
             SetTemporaryPopupMode(false);
             StartKeepaliveTimer();

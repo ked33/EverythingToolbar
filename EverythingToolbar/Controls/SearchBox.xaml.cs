@@ -64,9 +64,21 @@ namespace EverythingToolbar.Controls
 
             // IME composition can update the text without a reliable intermediate TextChanged in some hosts;
             // also re-sync after the input pipeline settles.
-            TextBox.AddHandler(TextCompositionManager.TextInputStartEvent, new TextCompositionEventHandler(OnTextComposition), true);
-            TextBox.AddHandler(TextCompositionManager.TextInputUpdateEvent, new TextCompositionEventHandler(OnTextComposition), true);
-            TextBox.AddHandler(TextCompositionManager.TextInputEvent, new TextCompositionEventHandler(OnTextComposition), true);
+            TextBox.AddHandler(
+                TextCompositionManager.TextInputStartEvent,
+                new TextCompositionEventHandler(OnTextComposition),
+                true
+            );
+            TextBox.AddHandler(
+                TextCompositionManager.TextInputUpdateEvent,
+                new TextCompositionEventHandler(OnTextComposition),
+                true
+            );
+            TextBox.AddHandler(
+                TextCompositionManager.TextInputEvent,
+                new TextCompositionEventHandler(OnTextComposition),
+                true
+            );
         }
 
         private void OnTextComposition(object sender, TextCompositionEventArgs e) => QueueSyncFromTextBox();
@@ -145,7 +157,6 @@ namespace EverythingToolbar.Controls
             }
             if (e.Key == Key.Escape)
             {
-                Keyboard.ClearFocus();
                 _viewModel.Dismiss();
                 e.Handled = true;
                 return;

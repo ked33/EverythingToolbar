@@ -69,7 +69,6 @@ namespace EverythingToolbar
             }
             else if (e.Key == Key.Escape)
             {
-                Keyboard.ClearFocus();
                 _controller.Dismiss();
                 e.Handled = true;
             }
@@ -230,6 +229,12 @@ namespace EverythingToolbar
 
         private void ActivateAndBringToFront()
         {
+            if (!IsVisible || _isHiding)
+            {
+                Logger.Debug("Search window activation skipped: visible={0}, hiding={1}.", IsVisible, _isHiding);
+                return;
+            }
+
             var hwnd = new WindowInteropHelper(this).Handle;
 
             LogWindowState("activation requested");

@@ -761,13 +761,13 @@
     <value>Open search window on double Ctrl</value>
   </data>
   <data name="SettingsOpenSearchWindowOnDoubleCtrlHelp" xml:space="preserve">
-    <value>Double-tap the left or right Ctrl key to open or toggle the search window</value>
+    <value>Double-tap the left or right Ctrl key to open the search window. Press Esc or double-tap Ctrl again to close it and return to the previous window.</value>
   </data>
   <data name="SettingsDoubleCtrlProcessBlacklist" xml:space="preserve">
     <value>Double Ctrl process blacklist</value>
   </data>
   <data name="SettingsDoubleCtrlProcessBlacklistHelp" xml:space="preserve">
-    <value>Comma-separated process names where double Ctrl is ignored (e.g. games)</value>
+    <value>Ignore double Ctrl in all windows of these processes. Separate multiple process names with commas, e.g. game1.exe, game2.exe (.exe is optional).</value>
   </data>
   <data name="SettingsKeepaliveInterval" xml:space="preserve">
     <value>Keepalive interval (seconds)</value>
@@ -795,5 +795,11 @@
   </data>
   <data name="MessageBoxCustomActionsShortcutDuplicate" xml:space="preserve">
     <value>Custom action shortcuts must be unique.</value>
+  </data>
+  <data name="MouseClick" xml:space="preserve">
+    <value>Click</value>
+  </data>
+  <data name="MouseRightClick" xml:space="preserve">
+    <value>Right Click</value>
   </data>
 </root>

@@ -649,16 +649,16 @@
     <value>更改任务栏图标的样式 (需要重新启动文件管理器)</value>
   </data>
   <data name="SettingsTaskbarWindow" xml:space="preserve">
-    <value>Show search box</value>
+    <value>显示搜索框</value>
   </data>
   <data name="SettingsTaskbarWindowHelp" xml:space="preserve">
-    <value>Show a search box on the taskbar</value>
+    <value>在任务栏上显示搜索框</value>
   </data>
   <data name="SettingsTaskbarWindowAlignment" xml:space="preserve">
-    <value>Search box alignment</value>
+    <value>搜索框对齐方式</value>
   </data>
   <data name="SettingsTaskbarWindowAlignmentHelp" xml:space="preserve">
-    <value>Controls the search box alignment on the taskbar</value>
+    <value>设置搜索框在任务栏上的对齐方式</value>
   </data>
   <data name="SettingsTaskbarWindowAlignmentLeft" xml:space="preserve">
     <value>靠左</value>
@@ -667,19 +667,19 @@
     <value>靠右</value>
   </data>
   <data name="SettingsTaskbarWindowUnsupported" xml:space="preserve">
-    <value>The search box requires the original Windows 11 taskbar. When using ExplorerPatcher or StartAllBack, use the deskband instead.</value>
+    <value>搜索框仅支持 Windows 11 原生任务栏。使用 ExplorerPatcher 或 StartAllBack 时，请改用任务栏工具栏。</value>
   </data>
   <data name="SettingsTaskbarIcon" xml:space="preserve">
-    <value>Taskbar icon</value>
+    <value>任务栏图标</value>
   </data>
   <data name="SettingsTaskbarSearchBox" xml:space="preserve">
-    <value>Taskbar search box</value>
+    <value>任务栏搜索框</value>
   </data>
   <data name="SettingsTaskbarIconStatusPinned" xml:space="preserve">
-    <value>Pinned to taskbar</value>
+    <value>已固定到任务栏</value>
   </data>
   <data name="SettingsTaskbarIconStatusNotPinned" xml:space="preserve">
-    <value>Not pinned to taskbar</value>
+    <value>未固定到任务栏</value>
   </data>
   <data name="SettingsFilterOrder" xml:space="preserve">
     <value>筛选器顺序</value>
@@ -733,7 +733,7 @@
     <value>需要重新启动</value>
   </data>
   <data name="MessageBoxRestartMessage" xml:space="preserve">
-    <value>语言更改需要重启系统才能生效。您现在要重启吗？</value>
+    <value>需要重新启动应用程序才能使语言更改生效。是否立即重启？</value>
   </data>
   <data name="CustomActionsShortcut" xml:space="preserve">
     <value>快捷键</value>
@@ -743,5 +743,62 @@
   </data>
   <data name="MessageBoxCustomActionsShortcutDuplicate" xml:space="preserve">
     <value>自定义操作的快捷键不能重复。</value>
+  </data>
+  <data name="ThemeSystem" xml:space="preserve">
+    <value>跟随系统</value>
+  </data>
+  <data name="ThemeLight" xml:space="preserve">
+    <value>浅色</value>
+  </data>
+  <data name="ThemeDark" xml:space="preserve">
+    <value>深色</value>
+  </data>
+  <data name="ThemeNord" xml:space="preserve">
+    <value>Nord</value>
+  </data>
+  <data name="ThemeOneDark" xml:space="preserve">
+    <value>One Dark</value>
+  </data>
+  <data name="SettingsTheme" xml:space="preserve">
+    <value>颜色主题</value>
+  </data>
+  <data name="SettingsThemeHelp" xml:space="preserve">
+    <value>选择应用程序使用的颜色主题</value>
+  </data>
+  <data name="SettingsOpenSearchWindowOnDoubleCtrl" xml:space="preserve">
+    <value>双击 Ctrl 打开搜索窗口</value>
+  </data>
+  <data name="SettingsOpenSearchWindowOnDoubleCtrlHelp" xml:space="preserve">
+    <value>连续按两次左 Ctrl 或右 Ctrl 可打开搜索窗口；按 Esc 或再次双击 Ctrl 可关闭并返回之前的窗口。</value>
+  </data>
+  <data name="SettingsDoubleCtrlProcessBlacklist" xml:space="preserve">
+    <value>双击 Ctrl 进程黑名单</value>
+  </data>
+  <data name="SettingsDoubleCtrlProcessBlacklistHelp" xml:space="preserve">
+    <value>在这些进程的所有窗口中禁用双击 Ctrl。多个进程名用英文逗号分隔，例如 game1.exe, game2.exe；可省略 .exe。</value>
+  </data>
+  <data name="SettingsKeepaliveInterval" xml:space="preserve">
+    <value>保活间隔（秒）</value>
+  </data>
+  <data name="SettingsKeepaliveIntervalHelp" xml:space="preserve">
+    <value>搜索窗口隐藏时，后台定期与 Everything 通信的时间间隔</value>
+  </data>
+  <data name="SettingsDefaultSearchPath" xml:space="preserve">
+    <value>默认搜索目录</value>
+  </data>
+  <data name="SettingsDefaultSearchPathHelp" xml:space="preserve">
+    <value>搜索框为空时，仅显示此目录中的结果</value>
+  </data>
+  <data name="SettingsDebugLoggingEnabled" xml:space="preserve">
+    <value>启用调试日志</value>
+  </data>
+  <data name="SettingsDebugLoggingEnabledHelp" xml:space="preserve">
+    <value>将详细日志写入临时目录中的 EverythingToolbar.log 文件</value>
+  </data>
+  <data name="MouseClick" xml:space="preserve">
+    <value>单击</value>
+  </data>
+  <data name="MouseRightClick" xml:space="preserve">
+    <value>右键单击</value>
   </data>
 </root>

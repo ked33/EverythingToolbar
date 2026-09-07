@@ -150,7 +150,7 @@
               <StackPanel Orientation="Horizontal">
                 <ui:Button Content="Enter" Style="{StaticResource StaticShortcutButtonStyle}" />
                 <ui:TextBlock VerticalAlignment="Center" Text="/" />
-                <ui:Button Content="Click" Style="{StaticResource StaticShortcutButtonStyle}" />
+                <ui:Button Content="{x:Static properties:Resources.MouseClick}" Style="{StaticResource StaticShortcutButtonStyle}" />
               </StackPanel>
             </controls:SettingItem.SettingContent>
           </controls:SettingItem>
@@ -161,7 +161,7 @@
                 <ui:TextBlock VerticalAlignment="Center" Text="+" />
                 <ui:Button Content="Enter" Style="{StaticResource StaticShortcutButtonStyle}" />
                 <ui:TextBlock VerticalAlignment="Center" Text="/" />
-                <ui:Button Content="Click" Style="{StaticResource StaticShortcutButtonStyle}" />
+                <ui:Button Content="{x:Static properties:Resources.MouseClick}" Style="{StaticResource StaticShortcutButtonStyle}" />
               </StackPanel>
             </controls:SettingItem.SettingContent>
           </controls:SettingItem>
@@ -172,7 +172,7 @@
                 <ui:TextBlock VerticalAlignment="Center" Text="+" />
                 <ui:Button Content="Enter" Style="{StaticResource StaticShortcutButtonStyle}" />
                 <ui:TextBlock VerticalAlignment="Center" Text="/" />
-                <ui:Button Content="Click" Style="{StaticResource StaticShortcutButtonStyle}" />
+                <ui:Button Content="{x:Static properties:Resources.MouseClick}" Style="{StaticResource StaticShortcutButtonStyle}" />
               </StackPanel>
             </controls:SettingItem.SettingContent>
           </controls:SettingItem>
@@ -185,7 +185,7 @@
                 <ui:TextBlock VerticalAlignment="Center" Text="+" />
                 <ui:Button Content="Enter" Style="{StaticResource StaticShortcutButtonStyle}" />
                 <ui:TextBlock VerticalAlignment="Center" Text="/" />
-                <ui:Button Content="Click" Style="{StaticResource StaticShortcutButtonStyle}" />
+                <ui:Button Content="{x:Static properties:Resources.MouseClick}" Style="{StaticResource StaticShortcutButtonStyle}" />
               </StackPanel>
             </controls:SettingItem.SettingContent>
           </controls:SettingItem>
@@ -196,7 +196,7 @@
                 <ui:TextBlock VerticalAlignment="Center" Text="+" />
                 <ui:Button Content="Enter" Style="{StaticResource StaticShortcutButtonStyle}" />
                 <ui:TextBlock VerticalAlignment="Center" Text="/" />
-                <ui:Button Content="Click" Style="{StaticResource StaticShortcutButtonStyle}" />
+                <ui:Button Content="{x:Static properties:Resources.MouseClick}" Style="{StaticResource StaticShortcutButtonStyle}" />
               </StackPanel>
             </controls:SettingItem.SettingContent>
           </controls:SettingItem>
@@ -205,7 +205,7 @@
               <StackPanel Orientation="Horizontal">
                 <ui:Button Content="Shift" Style="{StaticResource StaticShortcutButtonStyle}" />
                 <ui:TextBlock VerticalAlignment="Center" Text="+" />
-                <ui:Button Content="Right Click" Style="{StaticResource StaticShortcutButtonStyle}" />
+                <ui:Button Content="{x:Static properties:Resources.MouseRightClick}" Style="{StaticResource StaticShortcutButtonStyle}" />
               </StackPanel>
             </controls:SettingItem.SettingContent>
           </controls:SettingItem>

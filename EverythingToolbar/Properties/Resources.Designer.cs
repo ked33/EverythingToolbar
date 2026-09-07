@@ -1974,5 +1974,12 @@ namespace EverythingToolbar.Properties {
             get { return ResourceManager.GetString("MessageBoxCustomActionsShortcutDuplicate", resourceCulture); }
         }
 
+        public static string MouseClick {
+            get { return ResourceManager.GetString("MouseClick", resourceCulture); }
+        }
+        public static string MouseRightClick {
+            get { return ResourceManager.GetString("MouseRightClick", resourceCulture); }
+        }
+
     }
 }
