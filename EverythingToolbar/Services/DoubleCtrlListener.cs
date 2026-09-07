@@ -38,7 +38,7 @@ namespace EverythingToolbar.Services
         public DoubleCtrlListener(ISettings settings)
         {
             _settings = settings;
-            _keyboardHook = new LowLevelKeyboardHook(OnKeyEvent);
+            _keyboardHook = new LowLevelKeyboardHook(OnKeyEvent, CheckForMissingCtrlRelease);
             _settings.PropertyChanged += OnSettingsChanged;
         }
 
@@ -152,6 +152,11 @@ namespace EverythingToolbar.Services
                 DoubleCtrlDetector.MinIntervalMs,
                 DoubleCtrlDetector.MaxIntervalMs
             );
+            Logger.Debug(
+                "DoubleCtrl missing-release recovery: active independently of debug logging; checks run outside hook callbacks after {0} ms without a Ctrl event, require two released-state observations at least {1} ms apart, and discard the expired sequence.",
+                DoubleCtrlDetector.MaxIntervalMs,
+                DoubleCtrlDetector.ReleaseConfirmationMs
+            );
             // Independent of both the hook's message loop and the UI dispatcher. The heartbeat
             // must still be written when either of those threads stops making progress.
             _debugHeartbeatTimer = new Timer(_ => LogHeartbeat(), null, TimeSpan.Zero, TimeSpan.FromSeconds(30));
@@ -165,7 +170,7 @@ namespace EverythingToolbar.Services
             try
             {
                 Logger.Debug(
-                    "DoubleCtrl heartbeat: enabled={0}, listenerInstalled={1}, handlerAttached={2}, dispatcherAttached={3}, uiThreadAlive={4}, shutdownStarted={5}, shutdownFinished={6}, detectedTriggers={7}, droppedDebugEvents={8}.",
+                    "DoubleCtrl heartbeat: enabled={0}, listenerInstalled={1}, handlerAttached={2}, dispatcherAttached={3}, uiThreadAlive={4}, shutdownStarted={5}, shutdownFinished={6}, detectedTriggers={7}, droppedDebugEvents={8}, waitingForCtrlRelease={9}, systemLeftCtrlDown={10}, systemRightCtrlDown={11}.",
                     _settings.IsDoubleCtrlOpenSearchWindow,
                     _installed,
                     _handler != null,
@@ -174,7 +179,10 @@ namespace EverythingToolbar.Services
                     _dispatcher?.HasShutdownStarted,
                     _dispatcher?.HasShutdownFinished,
                     _detector.TriggerCount,
-                    ToolbarLogger.DroppedDebugEvents
+                    ToolbarLogger.DroppedDebugEvents,
+                    _detector.IsWaitingForRelease,
+                    IsKeyDown(VkLcontrol),
+                    IsKeyDown(VkRcontrol)
                 );
                 _keyboardHook.LogDiagnostics();
             }
@@ -190,6 +198,9 @@ namespace EverythingToolbar.Services
             {
                 if (!_settings.IsDoubleCtrlOpenSearchWindow || isInjected)
                 {
+                    if (isInjected && IsCtrlVk(vk))
+                        _detector.OnInjectedCtrlEvent(Environment.TickCount64);
+
                     if (IsCtrlVk(vk) && Logger.IsDebugEnabled)
                     {
                         Logger.Debug(
@@ -223,11 +234,13 @@ namespace EverythingToolbar.Services
                     {
                         var now = Environment.TickCount64;
                         var triggered = _detector.OnCtrlKeyDown(now);
+                        _keyboardHook.ScheduleStateCheck(DoubleCtrlDetector.MaxIntervalMs);
                         if (triggered && CanTrigger(_detector.TriggerCount))
                             QueueTrigger(_detector.TriggerCount);
                     }
                     else
                     {
+                        _keyboardHook.CancelStateCheck();
                         _detector.OnCtrlKeyUp();
                     }
 
@@ -252,6 +265,24 @@ namespace EverythingToolbar.Services
         }
 
         private static bool IsCtrlVk(int vk) => vk is VkLcontrol or VkRcontrol or VkControl;
+
+        private void CheckForMissingCtrlRelease()
+        {
+            if (!_settings.IsDoubleCtrlOpenSearchWindow || !_detector.IsWaitingForRelease)
+                return;
+
+            // Runs on the hook thread's message loop, not inside WH_KEYBOARD_LL: the current
+            // key event has not updated GetAsyncKeyState while that hook callback is running.
+            // Keeping both paths on the same thread also serializes detector state changes.
+            if (
+                !_detector.TryRecoverMissingRelease(
+                    Environment.TickCount64,
+                    IsKeyDown(VkLcontrol),
+                    IsKeyDown(VkRcontrol)
+                )
+            )
+                _keyboardHook.ScheduleStateCheck(_detector.ReleaseCheckDelayMs);
+        }
 
         private void QueueTrigger(int triggerId)
         {

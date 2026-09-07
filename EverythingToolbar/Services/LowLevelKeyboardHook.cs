@@ -19,6 +19,8 @@ namespace EverythingToolbar.Services
         private Thread? _hookThread;
         private uint _hookThreadId;
         private readonly string _owner;
+        private readonly Action? _onStateCheck;
+        private nuint _stateCheckTimerId;
         private long _debugCallbackCount;
         private long _debugPhysicalCtrlCount;
         private long _debugInjectedCtrlCount;
@@ -31,10 +33,11 @@ namespace EverythingToolbar.Services
         private const int LlkhfInjected = 0x10;
         private const int LlkhfLowerIlInjected = 0x02;
 
-        public LowLevelKeyboardHook(Func<int, bool, bool, bool> onKeyEvent)
+        public LowLevelKeyboardHook(Func<int, bool, bool, bool> onKeyEvent, Action? onStateCheck = null)
         {
             OnKeyEvent = onKeyEvent ?? throw new ArgumentNullException(nameof(onKeyEvent));
             _owner = onKeyEvent.Method.DeclaringType?.Name ?? "unknown";
+            _onStateCheck = onStateCheck;
         }
 
         public Func<int, bool, bool, bool> OnKeyEvent { get; }
@@ -114,6 +117,40 @@ namespace EverythingToolbar.Services
             Uninstall();
         }
 
+        /// <summary>Schedule a one-shot state check. Call only on the hook thread.</summary>
+        internal unsafe void ScheduleStateCheck(int delayMs)
+        {
+            if (_onStateCheck == null || _hookId == IntPtr.Zero)
+                return;
+
+            var timerId = PInvoke.SetTimer(HWND.Null, _stateCheckTimerId, (uint)delayMs, null);
+            if (timerId == 0)
+            {
+                var error = Marshal.GetLastWin32Error();
+                Logger.Error("Keyboard hook state check timer failed: owner={0}, win32Error={1}.", _owner, error);
+                return;
+            }
+            _stateCheckTimerId = timerId;
+        }
+
+        /// <summary>Cancel a pending state check. Call only on the hook thread.</summary>
+        internal void CancelStateCheck()
+        {
+            if (_stateCheckTimerId == 0)
+                return;
+
+            if (!PInvoke.KillTimer(HWND.Null, _stateCheckTimerId))
+            {
+                var error = Marshal.GetLastWin32Error();
+                Logger.Error(
+                    "Keyboard hook state check timer cancellation failed: owner={0}, win32Error={1}.",
+                    _owner,
+                    error
+                );
+            }
+            _stateCheckTimerId = 0;
+        }
+
         private void HookThreadProc(ManualResetEventSlim ready)
         {
             _hookThreadId = PInvoke.GetCurrentThreadId();
@@ -157,10 +194,26 @@ namespace EverythingToolbar.Services
                     );
                     break;
                 }
+                if (msg.message == PInvoke.WM_TIMER && msg.wParam.Value == _stateCheckTimerId)
+                {
+                    // Native timers repeat by default. Consume this one before the callback;
+                    // the listener schedules another check only while awaiting a release.
+                    CancelStateCheck();
+                    try
+                    {
+                        _onStateCheck?.Invoke();
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error(ex, "Keyboard hook state check failed: owner={0}.", _owner);
+                    }
+                    continue;
+                }
                 PInvoke.TranslateMessage(in msg);
                 PInvoke.DispatchMessage(in msg);
             }
 
+            CancelStateCheck();
             var unhooked = NativeMethods.UnhookWindowsHookEx(_hookId);
             var unhookError = unhooked ? 0 : Marshal.GetLastWin32Error();
             Logger.Debug(
