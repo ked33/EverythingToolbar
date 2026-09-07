@@ -30,8 +30,7 @@ namespace EverythingToolbar.Settings
             Ioc.Default.GetRequiredService<StartMenuSearchInterceptor>();
         private readonly GlobalShortcutListener _shortcutListener =
             Ioc.Default.GetRequiredService<GlobalShortcutListener>();
-        private readonly DoubleCtrlListener _doubleCtrlListener =
-            Ioc.Default.GetRequiredService<DoubleCtrlListener>();
+        private readonly DoubleCtrlListener _doubleCtrlListener = Ioc.Default.GetRequiredService<DoubleCtrlListener>();
 
         private LowLevelKeyboardHook? _keyboardHook;
 
@@ -161,7 +160,7 @@ namespace EverythingToolbar.Settings
         {
             _startMenuInterceptor.Disable();
             _shortcutListener.IsEnabled = false;
-            _doubleCtrlListener.Disable();
+            _doubleCtrlListener.Disable("shortcuts settings page loaded");
 
             Modifiers = (ModifierKeys)_settings.ShortcutModifiers;
             Key = (Key)_settings.ShortcutKey;
@@ -184,7 +183,7 @@ namespace EverythingToolbar.Settings
             }
 
             // Re-install double-Ctrl hook; SearchHost already provided the real handler.
-            _doubleCtrlListener.Refresh();
+            _doubleCtrlListener.Refresh("shortcuts settings page unloaded");
         }
     }
 }

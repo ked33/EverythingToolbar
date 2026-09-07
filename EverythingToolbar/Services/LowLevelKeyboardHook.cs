@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using NLog;
@@ -17,24 +18,47 @@ namespace EverythingToolbar.Services
         private IntPtr _hookId = IntPtr.Zero;
         private Thread? _hookThread;
         private uint _hookThreadId;
+        private readonly string _owner;
+        private long _debugCallbackCount;
+        private long _debugPhysicalCtrlCount;
+        private long _debugInjectedCtrlCount;
+        private long _debugLastCallbackTick;
+        private long _debugLastCtrlTick;
 
         private const int WhKeyboardLl = 13;
         private const int WmKeydown = 0x0100;
         private const int WmSyskeydown = 0x0104;
         private const int LlkhfInjected = 0x10;
+        private const int LlkhfLowerIlInjected = 0x02;
 
         public LowLevelKeyboardHook(Func<int, bool, bool, bool> onKeyEvent)
         {
             OnKeyEvent = onKeyEvent ?? throw new ArgumentNullException(nameof(onKeyEvent));
+            _owner = onKeyEvent.Method.DeclaringType?.Name ?? "unknown";
         }
 
         public Func<int, bool, bool, bool> OnKeyEvent { get; }
+        internal bool IsInstalled => _hookId != IntPtr.Zero && _hookThread?.IsAlive == true;
 
         public void Install()
         {
             if (_hookThread != null)
+            {
+                Logger.Debug(
+                    "Keyboard hook install skipped: owner={0}, threadAlive={1}, handle={2}.",
+                    _owner,
+                    _hookThread.IsAlive,
+                    _hookId
+                );
                 return;
+            }
 
+            Logger.Debug("Keyboard hook install requested: owner={0}.", _owner);
+            Interlocked.Exchange(ref _debugCallbackCount, 0);
+            Interlocked.Exchange(ref _debugPhysicalCtrlCount, 0);
+            Interlocked.Exchange(ref _debugInjectedCtrlCount, 0);
+            Interlocked.Exchange(ref _debugLastCallbackTick, 0);
+            Interlocked.Exchange(ref _debugLastCtrlTick, 0);
             var ready = new ManualResetEventSlim(false);
             _hookThread = new Thread(() => HookThreadProc(ready))
             {
@@ -49,8 +73,15 @@ namespace EverythingToolbar.Services
             {
                 _hookThread.Join();
                 _hookThread = null;
-                Logger.Error("Failed to install the low-level keyboard hook.");
+                Logger.Error("Failed to install the low-level keyboard hook. Owner={0}.", _owner);
             }
+            Logger.Debug(
+                "Keyboard hook install completed: owner={0}, installed={1}, nativeThread={2}, handle={3}.",
+                _owner,
+                IsInstalled,
+                _hookThreadId,
+                _hookId
+            );
         }
 
         public void Uninstall()
@@ -58,10 +89,24 @@ namespace EverythingToolbar.Services
             if (_hookThread == null)
                 return;
 
-            PInvoke.PostThreadMessage(_hookThreadId, PInvoke.WM_QUIT, default, default);
+            Logger.Debug(
+                "Keyboard hook uninstall requested: owner={0}, nativeThread={1}, handle={2}.",
+                _owner,
+                _hookThreadId,
+                _hookId
+            );
+            var posted = PInvoke.PostThreadMessage(_hookThreadId, PInvoke.WM_QUIT, default, default);
+            var error = posted ? 0 : Marshal.GetLastWin32Error();
+            Logger.Debug(
+                "Keyboard hook quit posted: owner={0}, success={1}, win32Error={2}.",
+                _owner,
+                (bool)posted,
+                error
+            );
             _hookThread.Join();
             _hookThread = null;
             _hookThreadId = 0;
+            Logger.Debug("Keyboard hook uninstall completed: owner={0}.", _owner);
         }
 
         public void Dispose()
@@ -81,6 +126,14 @@ namespace EverythingToolbar.Services
 
             _callback = HookCallback;
             _hookId = NativeMethods.SetWindowsHookEx(WhKeyboardLl, _callback, IntPtr.Zero, 0);
+            var installError = _hookId == IntPtr.Zero ? Marshal.GetLastWin32Error() : 0;
+            Logger.Debug(
+                "SetWindowsHookEx completed: owner={0}, nativeThread={1}, handle={2}, win32Error={3}.",
+                _owner,
+                _hookThreadId,
+                _hookId,
+                installError
+            );
 
             ready.Set();
 
@@ -90,18 +143,38 @@ namespace EverythingToolbar.Services
                 return;
             }
 
-            while (PInvoke.GetMessage(out var msg, HWND.Null, 0, 0))
+            while (true)
             {
+                var result = PInvoke.GetMessage(out var msg, HWND.Null, 0, 0);
+                if (result.Value <= 0)
+                {
+                    var error = result.Value < 0 ? Marshal.GetLastWin32Error() : 0;
+                    Logger.Debug(
+                        "Keyboard hook message loop exited: owner={0}, result={1}, win32Error={2}.",
+                        _owner,
+                        result.Value,
+                        error
+                    );
+                    break;
+                }
                 PInvoke.TranslateMessage(in msg);
                 PInvoke.DispatchMessage(in msg);
             }
 
-            NativeMethods.UnhookWindowsHookEx(_hookId);
+            var unhooked = NativeMethods.UnhookWindowsHookEx(_hookId);
+            var unhookError = unhooked ? 0 : Marshal.GetLastWin32Error();
+            Logger.Debug(
+                "UnhookWindowsHookEx completed: owner={0}, handle={1}, success={2}, win32Error={3}.",
+                _owner,
+                _hookId,
+                unhooked,
+                unhookError
+            );
             _hookId = IntPtr.Zero;
             _callback = null;
         }
 
-        private static unsafe void OptOutOfPowerThrottling()
+        private unsafe void OptOutOfPowerThrottling()
         {
             // Windows 11 may put background processes into efficiency mode (EcoQoS). A
             // throttled hook thread risks missing the LowLevelHooksTimeout deadline after
@@ -114,11 +187,40 @@ namespace EverythingToolbar.Services
                 StateMask = 0,
             };
 
-            PInvoke.SetThreadInformation(
+            var applied = PInvoke.SetThreadInformation(
                 PInvoke.GetCurrentThread(),
                 THREAD_INFORMATION_CLASS.ThreadPowerThrottling,
                 &state,
                 (uint)sizeof(THREAD_POWER_THROTTLING_STATE)
+            );
+            var error = applied ? 0 : Marshal.GetLastWin32Error();
+            Logger.Debug(
+                "Keyboard hook power throttling opt-out: owner={0}, success={1}, win32Error={2}.",
+                _owner,
+                (bool)applied,
+                error
+            );
+        }
+
+        internal void LogDiagnostics()
+        {
+            if (!Logger.IsDebugEnabled)
+                return;
+
+            var now = Environment.TickCount64;
+            var lastCallback = Interlocked.Read(ref _debugLastCallbackTick);
+            var lastCtrl = Interlocked.Read(ref _debugLastCtrlTick);
+            Logger.Debug(
+                "Keyboard hook health: owner={0}, trackedHandle={1}, threadAlive={2}, nativeThread={3}, debugCallbacks={4}, physicalCtrlEvents={5}, injectedCtrlEvents={6}, lastCallbackAgeMs={7}, lastCtrlAgeMs={8}. A tracked handle does not prove Windows still delivers events; -1 means no event observed while debugging.",
+                _owner,
+                _hookId,
+                _hookThread?.IsAlive == true,
+                _hookThreadId,
+                Interlocked.Read(ref _debugCallbackCount),
+                Interlocked.Read(ref _debugPhysicalCtrlCount),
+                Interlocked.Read(ref _debugInjectedCtrlCount),
+                lastCallback == 0 ? -1 : now - lastCallback,
+                lastCtrl == 0 ? -1 : now - lastCtrl
             );
         }
 
@@ -132,10 +234,66 @@ namespace EverythingToolbar.Services
             var isDown = message is WmKeydown or WmSyskeydown;
             var flags = Marshal.ReadInt32(lParam, 8);
             var isInjected = (flags & LlkhfInjected) != 0;
+            var isCtrl = vk is 0x11 or 0xA2 or 0xA3;
+            var debugEnabled = Logger.IsDebugEnabled;
+            var started = debugEnabled ? Stopwatch.GetTimestamp() : 0;
+            uint eventTime = 0;
+
+            if (debugEnabled)
+            {
+                Interlocked.Increment(ref _debugCallbackCount);
+                Interlocked.Exchange(ref _debugLastCallbackTick, Environment.TickCount64);
+                if (isCtrl)
+                {
+                    if (isInjected)
+                        Interlocked.Increment(ref _debugInjectedCtrlCount);
+                    else
+                        Interlocked.Increment(ref _debugPhysicalCtrlCount);
+                    Interlocked.Exchange(ref _debugLastCtrlTick, Environment.TickCount64);
+
+                    eventTime = unchecked((uint)Marshal.ReadInt32(lParam, 12));
+                    var deliveryDelay = unchecked((uint)Environment.TickCount - eventTime);
+                    Logger.Debug(
+                        "Keyboard hook Ctrl received: owner={0}, vk=0x{1:X2}, down={2}, scanCode=0x{3:X}, flags=0x{4:X}, injected={5}, lowerIntegrityInjected={6}, nativeTime={7}, deliveryDelayMs={8}.",
+                        _owner,
+                        vk,
+                        isDown,
+                        Marshal.ReadInt32(lParam, 4),
+                        flags,
+                        isInjected,
+                        (flags & LlkhfLowerIlInjected) != 0,
+                        eventTime,
+                        deliveryDelay
+                    );
+                }
+            }
 
             var swallow = OnKeyEvent(vk, isDown, isInjected);
+            var handlerMs = debugEnabled ? Stopwatch.GetElapsedTime(started).TotalMilliseconds : 0;
+            var result = swallow ? (IntPtr)1 : NativeMethods.CallNextHookEx(_hookId, nCode, wParam, lParam);
 
-            return swallow ? (IntPtr)1 : NativeMethods.CallNextHookEx(_hookId, nCode, wParam, lParam);
+            if (debugEnabled)
+            {
+                var totalMs = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+                if (isCtrl || totalMs >= 50)
+                {
+                    // Log no ordinary key codes or text. A nonzero downstream result can expose
+                    // another hook suppressing Ctrl, but Windows does not identify that hook's process.
+                    Logger.Debug(
+                        "Keyboard hook completed: owner={0}, keyKind={1}, nativeTime={2}, swallowedHere={3}, downstreamSuppressed={4}, chainResult={5}, handlerMs={6:F2}, totalMs={7:F2}.",
+                        _owner,
+                        isCtrl ? "Ctrl" : "other (slow callback)",
+                        eventTime,
+                        swallow,
+                        !swallow && result != IntPtr.Zero,
+                        result,
+                        handlerMs,
+                        totalMs
+                    );
+                }
+            }
+
+            return result;
         }
     }
 }

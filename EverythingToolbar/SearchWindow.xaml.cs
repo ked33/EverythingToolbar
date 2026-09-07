@@ -5,6 +5,7 @@ using System.Windows.Interop;
 using System.Windows.Threading;
 using EverythingToolbar.Controls;
 using EverythingToolbar.ViewModels;
+using NLog;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.UI.WindowsAndMessaging;
@@ -22,6 +23,8 @@ namespace EverythingToolbar
 
     public partial class SearchWindow
     {
+        private static readonly ILogger Logger = ToolbarLogger.GetLogger<SearchWindow>();
+
         public event EventHandler<EventArgs>? Hiding;
         public event EventHandler<EventArgs>? Hidden;
         public event EventHandler<ShowingEventArgs>? Showing;
@@ -121,11 +124,20 @@ namespace EverythingToolbar
 
         internal void Show(ShowOptions options)
         {
+            LogWindowState("Show requested");
+            Logger.Debug(
+                "Search window show options: activate={0}, atCursor={1}, showingHandlerAttached={2}.",
+                options.Activate,
+                options.AtCursor,
+                Showing != null
+            );
             if (Visibility == Visibility.Visible && !_isHiding)
             {
+                Logger.Debug("Search window already visible; activation requested={0}.", options.Activate);
                 if (options.Activate)
                     ActivateAndBringToFront();
 
+                ScheduleDebugVisibilityCheck();
                 return;
             }
 
@@ -136,6 +148,7 @@ namespace EverythingToolbar
 
             ShowActivated = options.Activate;
             base.Show();
+            LogWindowState("base.Show returned");
 
             if (options.Activate)
             {
@@ -143,12 +156,18 @@ namespace EverythingToolbar
             }
 
             Showing?.Invoke(this, new ShowingEventArgs(options.AtCursor));
+            LogWindowState("Showing handlers returned");
+            ScheduleDebugVisibilityCheck();
         }
 
         internal void HideAnimated()
         {
+            LogWindowState("HideAnimated requested");
             if (Visibility != Visibility.Visible || _isHiding)
+            {
+                Logger.Debug("Search window hide ignored: visible={0}, alreadyHiding={1}.", IsVisible, _isHiding);
                 return;
+            }
 
             _isHiding = true;
             Hiding?.Invoke(this, EventArgs.Empty);
@@ -161,6 +180,7 @@ namespace EverythingToolbar
 
         private void OnHidden()
         {
+            LogWindowState("hide animation completed");
             _isHiding = false;
             _viewModel.SavePopupSize((int)Width, (int)Height);
 
@@ -170,6 +190,7 @@ namespace EverythingToolbar
             Left = 100000;
 
             base.Hide();
+            LogWindowState("base.Hide returned");
 
             _animator.UnhookRendering();
 
@@ -190,6 +211,7 @@ namespace EverythingToolbar
             if (!_isFirstShow || Visibility == Visibility.Visible)
                 return;
 
+            LogWindowState("prewarm starting");
             _isFirstShow = false;
 
             // Park off-screen so the warm-up show can never flash on screen.
@@ -203,24 +225,89 @@ namespace EverythingToolbar
             base.Show(); // Intentionally without firing Showing
             UpdateLayout();
             base.Hide(); // Intentionally without firing Hiding
+            LogWindowState("prewarm completed");
         }
 
         private void ActivateAndBringToFront()
         {
             var hwnd = new WindowInteropHelper(this).Handle;
 
-            Activate();
+            LogWindowState("activation requested");
+            var activated = Activate();
             NativeMethods.ForciblySetForegroundWindow(hwnd);
+            Logger.Debug("Search window WPF Activate result={0}.", activated);
+            LogWindowState("foreground activation returned");
         }
 
         public void AnimateShow(double left, double top, double width, double height, Edge taskbarEdge)
         {
+            Logger.Debug(
+                "Search window AnimateShow: left={0}, top={1}, width={2}, height={3}, taskbarEdge={4}, animationsDisabled={5}.",
+                left,
+                top,
+                width,
+                height,
+                taskbarEdge,
+                _viewModel.AnimationsDisabled
+            );
             _animator.AnimateShow(left, top, width, height, taskbarEdge);
         }
 
         public void AnimateHide(Edge taskbarEdge)
         {
+            LogWindowState("AnimateHide starting");
             _animator.AnimateHide(taskbarEdge);
+        }
+
+        private void LogWindowState(string stage)
+        {
+            if (!Logger.IsDebugEnabled)
+                return;
+
+            var hwnd = new WindowInteropHelper(this).Handle;
+            var foreground = NativeMethods.GetForegroundWindow();
+            NativeMethods.GetWindowThreadProcessId(foreground, out var foregroundPid);
+            Logger.Debug(
+                "Search window {0}: hwnd={1}, visibility={2}, windowState={3}, active={4}, keyboardFocusWithin={5}, hiding={6}, firstShow={7}, opacity={8:F2}, left={9:F0}, top={10:F0}, width={11:F0}, height={12:F0}, foreground={13}, foregroundPid={14}, isForeground={15}.",
+                stage,
+                hwnd,
+                Visibility,
+                WindowState,
+                IsActive,
+                IsKeyboardFocusWithin,
+                _isHiding,
+                _isFirstShow,
+                Opacity,
+                Left,
+                Top,
+                ActualWidth,
+                ActualHeight,
+                foreground,
+                foregroundPid,
+                hwnd != IntPtr.Zero && foreground == hwnd
+            );
+        }
+
+        private void ScheduleDebugVisibilityCheck()
+        {
+            if (!Logger.IsDebugEnabled)
+                return;
+
+            ScopeContext.TryGetProperty("DoubleCtrlTrigger", out var triggerId);
+            var timer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher)
+            {
+                Interval = TimeSpan.FromSeconds(1),
+            };
+            timer.Tick += (_, _) =>
+            {
+                timer.Stop();
+                if (!Logger.IsDebugEnabled)
+                    return;
+
+                using var scope = triggerId != null ? ScopeContext.PushProperty("DoubleCtrlTrigger", triggerId) : null;
+                LogWindowState("one second after show request");
+            };
+            timer.Start();
         }
 
         private void SetTopmostBelowTaskbar()

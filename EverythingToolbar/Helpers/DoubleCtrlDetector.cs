@@ -1,3 +1,5 @@
+using NLog;
+
 namespace EverythingToolbar.Helpers
 {
     /// <summary>
@@ -22,6 +24,7 @@ namespace EverythingToolbar.Helpers
 
         // Canonical id for any Ctrl vk (LCONTROL / RCONTROL / CONTROL).
         private const int CtrlKeyId = 0x11;
+        private static readonly ILogger Logger = ToolbarLogger.GetLogger<DoubleCtrlDetector>();
 
         private long _lastDownTime;
         private int _lastKeyId;
@@ -29,9 +32,11 @@ namespace EverythingToolbar.Helpers
         private bool _wasReleased = true;
 
         public int TriggerCount { get; private set; }
+        internal bool HasPendingTap => _clickCount != 0;
 
         public void Reset()
         {
+            Logger.Debug("DoubleCtrl detector reset: pendingTaps={0}, wasReleased={1}.", _clickCount, _wasReleased);
             _lastDownTime = 0;
             _lastKeyId = 0;
             _clickCount = 0;
@@ -39,7 +44,11 @@ namespace EverythingToolbar.Helpers
         }
 
         /// <summary>Call on WM_KEYUP / WM_SYSKEYUP for Ctrl so the next down can count as a new tap.</summary>
-        public void OnCtrlKeyUp() => _wasReleased = true;
+        public void OnCtrlKeyUp()
+        {
+            Logger.Debug("DoubleCtrl Ctrl up: wasReleased={0}, pendingTaps={1}.", _wasReleased, _clickCount);
+            _wasReleased = true;
+        }
 
         /// <summary>
         /// Feed a Ctrl key-down. Returns true when a double-tap is completed.
@@ -48,7 +57,13 @@ namespace EverythingToolbar.Helpers
         {
             // Key-repeat: never released since last press — ignore (SwiftList _wasReleased guard).
             if (!_wasReleased)
+            {
+                Logger.Debug(
+                    "DoubleCtrl down ignored: no accepted Ctrl up since previous down (repeat or missing release). pendingTaps={0}.",
+                    _clickCount
+                );
                 return false;
+            }
 
             _wasReleased = false;
 
@@ -60,6 +75,7 @@ namespace EverythingToolbar.Helpers
                 _clickCount++;
                 if (_clickCount >= DoubleTapClickCount)
                 {
+                    Logger.Debug("DoubleCtrl detected: trigger={0}, intervalMs={1}.", TriggerCount + 1, elapsed);
                     _clickCount = 0;
                     _lastDownTime = 0;
                     _lastKeyId = 0;
@@ -72,6 +88,21 @@ namespace EverythingToolbar.Helpers
             }
 
             // First tap of a new sequence (or second tap outside the window / different key).
+            if (Logger.IsDebugEnabled)
+            {
+                var reason =
+                    _lastKeyId != keyId ? "first tap"
+                    : elapsed <= MinIntervalMs ? "too fast"
+                    : "too slow";
+                Logger.Debug(
+                    "DoubleCtrl starting sequence: reason={0}, intervalMs={1}, previousTaps={2}, requiredIntervalMs=({3}, {4}) exclusive.",
+                    reason,
+                    _lastKeyId == keyId ? elapsed : -1,
+                    _clickCount,
+                    MinIntervalMs,
+                    MaxIntervalMs
+                );
+            }
             _clickCount = 1;
             _lastDownTime = nowMs;
             _lastKeyId = keyId;

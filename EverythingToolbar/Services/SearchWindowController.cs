@@ -89,12 +89,26 @@ namespace EverythingToolbar.Services
         public void ToggleSearchUi() =>
             RunOnUi(() =>
             {
+                LogState("ToggleSearchUi requested");
                 if (IsIconMode)
+                {
+                    Logger.Debug("Search UI toggle routed to popup window.");
                     ToggleInternal();
+                }
                 else if (_toolbarBoxIsFocused?.Invoke() == true)
+                {
+                    Logger.Debug("Search UI toggle routed to hide: toolbar search box already focused.");
                     HideInternal();
+                }
                 else
+                {
+                    Logger.Debug(
+                        "Search UI toggle routed to toolbar focus: focusHandlerAttached={0}.",
+                        _toolbarBoxFocus != null
+                    );
                     _toolbarBoxFocus?.Invoke();
+                    LogState("toolbar focus handler returned");
+                }
             });
 
         public void TogglePopupAtCursor() =>
@@ -108,7 +122,10 @@ namespace EverythingToolbar.Services
 
                 // Ignore a toggle arriving right after a hide (e.g. clicking the icon to close reopens otherwise).
                 if ((DateTime.Now - _lastHideStart).TotalMilliseconds < DebounceMs)
+                {
+                    LogState("cursor popup toggle ignored during hide debounce");
                     return;
+                }
 
                 ShowStandaloneInternal();
             });
@@ -131,6 +148,7 @@ namespace EverythingToolbar.Services
         public void NotifyFocusLostToOutside() =>
             RunOnUi(() =>
             {
+                LogState("keyboard focus lost to outside; scheduling focus check");
                 // Keyboard focus leaving the window reports NewFocus == null even when it moves to our own
                 // attached toolbar box, which lives in a separate top-level window. Defer the hide so focus
                 // can settle (the box's GotKeyboardFocus runs right after this), then skip it if focus landed
@@ -139,8 +157,12 @@ namespace EverythingToolbar.Services
                     new Action(() =>
                     {
                         if (_toolbarBoxIsFocused?.Invoke() == true)
+                        {
+                            Logger.Debug("Search UI focus-loss hide skipped: focus moved to toolbar search box.");
                             return;
+                        }
 
+                        LogState("hiding after deferred outside-focus check");
                         HideInternal();
                     }),
                     DispatcherPriority.Input
@@ -183,9 +205,11 @@ namespace EverythingToolbar.Services
 
         private void ShowInternal(bool atCursor)
         {
+            LogState("ShowInternal requested");
             StopKeepaliveTimer();
             Window.Show(new ShowOptions(IsIconMode, atCursor));
             _state = WindowState.Visible;
+            LogState("ShowInternal returned");
 
             // Restore auto-select-first when the window opens (and after results settle).
             // Clear first so a stale index from a previous session cannot linger, then select
@@ -208,8 +232,12 @@ namespace EverythingToolbar.Services
         private void HideInternal()
         {
             if (_state != WindowState.Visible)
+            {
+                LogState("HideInternal ignored: controller state is not Visible");
                 return;
+            }
 
+            LogState("HideInternal starting");
             _state = WindowState.HidingAnimation;
             _lastHideStart = DateTime.Now;
             Window.HideAnimated();
@@ -218,6 +246,7 @@ namespace EverythingToolbar.Services
 
         private void ToggleInternal()
         {
+            LogState("ToggleInternal deciding show or hide");
             if (_state == WindowState.Hidden)
                 ShowInternal(atCursor: false);
             else
@@ -235,6 +264,7 @@ namespace EverythingToolbar.Services
 
         private void OnWindowActivated(object? sender, EventArgs e)
         {
+            LogState("window activated");
             ActiveChanged?.Invoke(this, true);
 
             if (IsIconMode)
@@ -243,17 +273,20 @@ namespace EverythingToolbar.Services
 
         private void OnWindowDeactivated(object? sender, EventArgs e)
         {
+            LogState("window deactivated");
             ActiveChanged?.Invoke(this, false);
         }
 
         private void OnWindowShowing(object? sender, ShowingEventArgs e)
         {
+            LogState("window Showing event");
             Showing?.Invoke(this, EventArgs.Empty);
         }
 
         private void OnWindowHidden(object? sender, EventArgs e)
         {
             _state = WindowState.Hidden;
+            LogState("window Hidden event");
             SetTemporaryPopupMode(false);
             StartKeepaliveTimer();
             Hidden?.Invoke(this, EventArgs.Empty);
@@ -313,7 +346,35 @@ namespace EverythingToolbar.Services
             if (dispatcher.CheckAccess())
                 action();
             else
+            {
+                Logger.Debug(
+                    "Search UI action queued from another thread: shutdownStarted={0}, shutdownFinished={1}.",
+                    dispatcher.HasShutdownStarted,
+                    dispatcher.HasShutdownFinished
+                );
                 dispatcher.BeginInvoke(action);
+            }
+        }
+
+        private void LogState(string stage)
+        {
+            if (!Logger.IsDebugEnabled)
+                return;
+
+            Logger.Debug(
+                "Search UI {0}: controllerState={1}, iconMode={2}, temporaryPopup={3}, toolbarFocusHandler={4}, windowCreated={5}, visible={6}, active={7}, keyboardFocusWithin={8}, sinceHideStartMs={9:F0}, foreground={10}.",
+                stage,
+                _state,
+                IsIconMode,
+                _temporaryPopupMode,
+                _toolbarBoxFocus != null,
+                _window != null,
+                _window?.IsVisible,
+                _window?.IsActive,
+                _window?.IsKeyboardFocusWithin,
+                _lastHideStart == DateTime.MinValue ? -1 : (DateTime.Now - _lastHideStart).TotalMilliseconds,
+                NativeMethods.GetForegroundWindow()
+            );
         }
     }
 }

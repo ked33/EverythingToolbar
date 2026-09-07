@@ -86,7 +86,7 @@ namespace EverythingToolbar.Services
             _preWarmOperation = null;
 
             _shortcutListener.Disable();
-            _doubleCtrlListener.Disable();
+            _doubleCtrlListener.Disable("search host detached");
             _startMenuInterceptor.Disable();
 
             _controller.Hide();

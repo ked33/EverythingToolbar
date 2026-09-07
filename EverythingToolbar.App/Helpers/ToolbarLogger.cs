@@ -1,9 +1,11 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 using NLog;
 using NLog.Config;
 using NLog.Targets;
+using NLog.Targets.Wrappers;
 
 namespace EverythingToolbar.App.Helpers
 {
@@ -12,6 +14,10 @@ namespace EverythingToolbar.App.Helpers
         private static readonly string DebugFlagFileName = Path.Combine(ConfigPaths.GetConfigDirectory(), "debug.txt");
         private static readonly LogFactory LogFactory = new LogFactory();
         private static ILogger? RootLogger;
+        private static LoggingRule? DebugRule;
+        private static long DroppedDebugEventCount;
+
+        public static long DroppedDebugEvents => Interlocked.Read(ref DroppedDebugEventCount);
 
         public static ILogger GetLogger(string name)
         {
@@ -36,15 +42,16 @@ namespace EverythingToolbar.App.Helpers
         public static void SetDebugLoggingEnabled(bool enabled)
         {
             _forceDebugLogging = enabled;
-            if (LogFactory.Configuration == null)
+            if (DebugRule == null)
                 return;
 
-            foreach (var rule in LogFactory.Configuration.LoggingRules)
-            {
-                rule.SetLoggingLevels(GetLogLevel(), LogLevel.Fatal);
-            }
+            if (GetLogLevel() == LogLevel.Debug)
+                DebugRule.EnableLoggingForLevel(LogLevel.Debug);
+            else
+                DebugRule.DisableLoggingForLevel(LogLevel.Debug);
 
             LogFactory.ReconfigExistingLoggers();
+            RootLogger?.Debug("Debug logging configuration updated. Settings switch enabled={0}.", enabled);
         }
 
         private static void LogVersionInformation(ILogger logger)
@@ -98,10 +105,23 @@ namespace EverythingToolbar.App.Helpers
                 KeepFileOpen = true,
                 OpenFileCacheTimeout = 30,
                 ConcurrentWrites = true,
-                Layout = "${longdate}|${level:uppercase=true}|${logger}|${message}|${exception:format=tostring}",
+                Layout =
+                    "${longdate}|${level:uppercase=true}|${logger}|pid=${processid}|tid=${threadid}|doubleCtrl=${scopeproperty:item=DoubleCtrlTrigger}|${message}|${exception:format=tostring}",
             };
-            var fileRule = new LoggingRule("*", GetLogLevel(), logfile);
+            // Debug traces can originate in WH_KEYBOARD_LL callbacks. Never wait for disk I/O
+            // or a full logging queue there: Windows can silently remove a slow keyboard hook.
+            var debugFile = new AsyncTargetWrapper(logfile, 4096, AsyncTargetWrapperOverflowAction.Discard)
+            {
+                Name = "debug-logfile",
+            };
+            debugFile.LogEventDropped += (_, _) => Interlocked.Increment(ref DroppedDebugEventCount);
+            DebugRule = new LoggingRule("*", LogLevel.Debug, LogLevel.Debug, debugFile);
+            if (GetLogLevel() != LogLevel.Debug)
+                DebugRule.DisableLoggingForLevel(LogLevel.Debug);
+
+            var fileRule = new LoggingRule("*", LogLevel.Info, logfile);
             var config = new LoggingConfiguration();
+            config.LoggingRules.Add(DebugRule);
             config.LoggingRules.Add(fileRule);
             LogFactory.Configuration = config;
         }
