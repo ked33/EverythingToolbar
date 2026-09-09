@@ -31,6 +31,7 @@ namespace EverythingToolbar.Controls
         }
 
         private Point _dragStart;
+        private SearchResult? _dragResult;
         private int _lastScrolledIndex = -1;
         private ScrollViewer? _scrollViewer;
         private Action? _focusSelectedItem;
@@ -87,6 +88,9 @@ namespace EverythingToolbar.Controls
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
+            _dragResult = null;
+            _touchId = null;
+
             if (_focusSelectedItem != null)
                 _viewModel.UnregisterResultsList(_focusSelectedItem);
 
@@ -243,16 +247,17 @@ namespace EverythingToolbar.Controls
 
         private void OnPreviewLeftMouseButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // Prevents deselecting an item when Ctrl is held down and clicking on an already selected item
-            if (Keyboard.Modifiers == ModifierKeys.Control)
-            {
-                if (e.OriginalSource is not DependencyObject source)
-                    return;
+            if (e.OriginalSource is not DependencyObject source)
+                return;
 
-                ListViewItem? item = ItemsControl.ContainerFromElement(SearchResultsListView, source) as ListViewItem;
-                if (item?.IsSelected == true)
-                    e.Handled = true;
-            }
+            var item = ItemsControl.ContainerFromElement(SearchResultsListView, source) as ListViewItem;
+            // Snapshot the pressed row before focus changes or an asynchronous query resets selection.
+            _dragResult = item?.Content as SearchResult;
+            _dragStart = PointToScreen(e.GetPosition(this));
+
+            // Prevents deselecting an item when Ctrl is held down and clicking on an already selected item
+            if (Keyboard.Modifiers == ModifierKeys.Control && item?.IsSelected == true)
+                e.Handled = true;
         }
 
         private void OnKeyPressed(object? sender, KeyEventArgs e)
@@ -297,6 +302,8 @@ namespace EverythingToolbar.Controls
 
         private void SingleClickSearchResult(object sender, MouseEventArgs e)
         {
+            _dragResult = null;
+
             if (!_viewModel.IsDoubleClickToOpen)
                 OpenWithMouseClick();
         }
@@ -402,22 +409,23 @@ namespace EverythingToolbar.Controls
             _viewModel.TryRunCustomAction(SelectedSearchResult, command);
         }
 
-        private void OnListViewItemMouseDown(object sender, MouseButtonEventArgs e)
-        {
-            _dragStart = PointToScreen(Mouse.GetPosition(this));
-        }
-
         private void OnListViewItemMouseMove(object sender, MouseEventArgs e)
         {
             if (e.LeftButton != MouseButtonState.Pressed)
+            {
+                if (_touchId == null)
+                    _dragResult = null;
                 return;
+            }
 
-            TryStartDragDrop(PointToScreen(Mouse.GetPosition(this)));
+            if (TryStartDragDrop(PointToScreen(Mouse.GetPosition(this))))
+                e.Handled = true;
         }
 
         private void OnListViewItemTouchDown(object sender, TouchEventArgs e)
         {
             _touchId = e.TouchDevice.Id;
+            _dragResult = (sender as ListViewItem)?.Content as SearchResult;
             _dragStart = PointToScreen(e.GetTouchPoint(this).Position);
         }
 
@@ -427,18 +435,25 @@ namespace EverythingToolbar.Controls
                 return;
 
             if (TryStartDragDrop(PointToScreen(e.GetTouchPoint(this).Position)))
+            {
                 _touchId = null;
+                e.Handled = true;
+            }
         }
 
         private void OnListViewItemTouchUp(object sender, TouchEventArgs e)
         {
             if (_touchId == e.TouchDevice.Id)
+            {
                 _touchId = null;
+                _dragResult = null;
+            }
         }
 
         private bool TryStartDragDrop(Point currentPosition)
         {
-            if (SelectedSearchResult == null)
+            var result = _dragResult;
+            if (result == null)
                 return false;
 
             var diff = _dragStart - currentPosition;
@@ -449,7 +464,9 @@ namespace EverythingToolbar.Controls
             )
                 return false;
 
-            string[] files = [SelectedSearchResult.FullPathAndFileName];
+            // Consume this gesture before DoDragDrop enters its nested message loop.
+            _dragResult = null;
+            string[] files = [result.FullPathAndFileName];
             var data = new DataObject(DataFormats.FileDrop, files);
             data.SetData(DataFormats.Text, files[0]);
 
@@ -460,7 +477,12 @@ namespace EverythingToolbar.Controls
                 "Preferred DropEffect",
                 new System.IO.MemoryStream(System.BitConverter.GetBytes((int)dragDropEffect))
             );
-            DragDrop.DoDragDrop(SearchResultsListView, data, DragDropEffects.Copy | DragDropEffects.Move);
+            // Applications can use Link to open a file without copying or moving it.
+            DragDrop.DoDragDrop(
+                SearchResultsListView,
+                data,
+                DragDropEffects.Copy | DragDropEffects.Move | DragDropEffects.Link
+            );
             return true;
         }
 

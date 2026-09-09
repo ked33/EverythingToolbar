@@ -124,8 +124,10 @@ namespace EverythingToolbar.Controls
             if (!string.Equals(SearchTerm, text, System.StringComparison.Ordinal))
                 SetCurrentValue(SearchTermProperty, text);
 
-            // Always go through SearchState so SearchSession rebuilds (force notify).
-            _viewModel.SearchState.SetSearchTermFromUi(text);
+            // Focus loss and final IME events can repeat an already committed query. Rebuilding here
+            // would reset the results and selection just as the user starts dragging a file.
+            if (!string.Equals(_viewModel.SearchState.SearchTerm, text, System.StringComparison.Ordinal))
+                _viewModel.SearchState.SetSearchTermFromUi(text);
         }
 
         private void OnPreviewKeyDown(object? sender, KeyEventArgs e)

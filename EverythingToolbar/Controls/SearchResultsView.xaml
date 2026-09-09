@@ -68,7 +68,6 @@
         <Setter Property="ContextMenu" Value="{StaticResource ListViewItemContextMenu}" />
         <EventSetter Event="PreviewMouseLeftButtonUp" Handler="SingleClickSearchResult" />
         <EventSetter Event="PreviewMouseDoubleClick" Handler="DoubleClickSearchResult" />
-        <EventSetter Event="PreviewMouseDown" Handler="OnListViewItemMouseDown" />
         <EventSetter Event="MouseMove" Handler="OnListViewItemMouseMove" />
         <EventSetter Event="TouchDown" Handler="OnListViewItemTouchDown" />
         <EventSetter Event="TouchMove" Handler="OnListViewItemTouchMove" />
